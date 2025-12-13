@@ -1,74 +1,111 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
 :root {
-  --bg: radial-gradient(circle at 20% 20%, #e0f2fe 0, rgba(224,242,254,0) 40%), radial-gradient(circle at 80% 0, #dcfce7 0, rgba(220,252,231,0) 36%), #f8fafc;
-  --surface: #ffffff;
-  --border: #e5e7eb;
-  --primary: #0ea5e9;
-  --text: #0f172a;
-  --muted: #475569;
+  --primary: #f63;
+  --primary-hover: #e55;
+  --text: #333;
+  --muted: #999;
+  --border: #eaeaea;
+  --bg-body: #f9f9f9;
+  --bg-card: #ffffff;
 }
 
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  -webkit-font-smoothing: antialiased;
 }
-#app { min-height: 100vh; }
 
-.shell { display: flex; flex-direction: column; min-height: 100vh; }
-.layout { display: flex; gap: 16px; max-width: 1280px; width: 100%; margin: 0 auto; padding: 18px; }
-.main { padding: 4px; flex: 1; max-width: 960px; margin-bottom: 48px; }
+/* 简单的 Grid 系统辅助类 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+}
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 10px 28px rgba(15,23,42,0.08);
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.02);
 }
-.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.title { font-weight: 700; margin: 0 0 8px; }
-.muted { color: var(--muted); font-size: 12px; }
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(14,165,233,0.16); font-size: 12px; font-weight: 700; }
 
-input, textarea, select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font: inherit;
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
-textarea { min-height: 80px; }
 
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 按钮样式 */
 button {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 8px 16px;
+  border-radius: 6px;
   border: 1px solid transparent;
-  background: linear-gradient(120deg, #0ea5e9, #06b6d4);
-  color: #fff;
-  font-weight: 700;
+  background: var(--primary);
+  color: white;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(14,165,233,0.2);
+  font-weight: 500;
+  transition: all 0.2s;
 }
-button.secondary { background: #e2e8f0; color: var(--text); box-shadow: none; }
-button.secondary.active { background: rgba(14,165,233,0.14); color: var(--primary); border-color: rgba(14,165,233,0.25); }
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }
-.log { background:#0f172a; color:#e2e8f0; padding:10px; border-radius:10px; font-family: monospace; white-space: pre-wrap; min-height:60px; }
-
-.badge {
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: rgba(16,185,129,0.12);
-  border: 1px solid rgba(16,185,129,0.4);
-  font-size: 12px;
-  color: #0f172a;
+button:hover {
+  background: var(--primary-hover);
+}
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+button.secondary {
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+}
+button.secondary:hover {
+  border-color: #999;
+  color: #333;
+}
+button.text {
+  background: none;
+  color: #666;
+  padding: 4px 8px;
+}
+button.text:hover {
+  background: rgba(0,0,0,0.05);
 }
 
-.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.list { padding: 0; margin: 0; list-style: none; }
-.list li { border-bottom: 1px dashed var(--border); padding: 8px 0; }
+/* 输入框样式 */
+input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus {
+  border-color: var(--primary);
+}
+
+/* 文本辅助 */
+.title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+.muted { color: var(--muted); font-size: 13px; }
+.pill {
+  display: inline-block; padding: 4px 10px; border-radius: 20px;
+  background: #f0f0f0; color: #666; font-size: 12px; cursor: pointer;
+}
+.log { margin-top: 10px; font-size: 12px; color: var(--primary); }
+
+/* 列表样式 */
+.list { list-style: none; padding: 0; margin: 0; }
+.list li {
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+.list li:last-child { border-bottom: none; }

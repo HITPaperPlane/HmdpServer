@@ -9,8 +9,8 @@
       </div>
 
       <template v-if="tab !== 'ADMIN'">
-        <label>手机号 / 邮箱</label>
-        <input v-model="form.phone" placeholder="user@example.com" />
+        <label>邮箱</label>
+        <input v-model="form.email" placeholder="user@example.com" />
         <label>验证码</label>
         <div class="row">
           <input v-model="form.code" placeholder="收到的验证码" />
@@ -31,7 +31,7 @@
     <div class="card">
       <h4 class="title">提示</h4>
       <ul class="list">
-        <li>用户：手机号/邮箱 + 验证码，接口 `/user/code`、`/user/login`。</li>
+        <li>用户：邮箱 + 验证码，接口 `/user/code`、`/user/login`。</li>
         <li>商家：邮箱 + 验证码，接口 `/merchant/code`、`/merchant/login`（首次会生成商家角色）。</li>
         <li>管理员：固定账号密码，接口 `/admin/login`。</li>
       </ul>
@@ -48,7 +48,7 @@ import { useRouter } from 'vue-router';
 const session = useSessionStore();
 const router = useRouter();
 const tab = ref('USER');
-const form = reactive({ phone: '', code: '' });
+const form = reactive({ email: '', code: '' });
 const admin = reactive({ username: 'admin', password: 'Admin#123456' });
 const loading = reactive({ code: false, login: false });
 const log = ref('等待登录');
@@ -60,16 +60,16 @@ const loginText = computed(() => {
 });
 
 async function sendCode() {
-  if (!form.phone) {
-    log.value = '请填写手机号/邮箱';
+  if (!form.email) {
+    log.value = '请填写邮箱';
     return;
   }
   loading.code = true;
   try {
     if (tab.value === 'MERCHANT') {
-      await request('/merchant/code', { method: 'POST', body: { phone: form.phone } });
+      await request('/merchant/code', { method: 'POST', body: { email: form.email } });
     } else {
-      await request(`/user/code?phone=${encodeURIComponent(form.phone)}`, { method: 'POST' });
+      await request(`/user/code?email=${encodeURIComponent(form.email)}`, { method: 'POST' });
     }
     log.value = '验证码已发送';
   } catch (e) {
