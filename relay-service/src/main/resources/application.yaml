@@ -1,0 +1,38 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: hmdp-relay
+  redis:
+    cluster:
+      nodes:
+        - 123.56.100.212:6379
+        - 39.97.193.168:6379
+        - 115.190.193.236:6379
+    password: 123456
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 1
+  rabbitmq:
+    host: 115.190.193.236
+    username: paperplane
+    password: 123456
+    virtual-host: /
+    port: 5672
+    template:
+      mandatory: true
+    publisher-confirm-type: correlated
+canal:
+  host: 123.56.100.212
+  port: 11111
+  destination: example
+  username:
+  password:
+  subscribe: "hmdp\\.tb_shop,hmdp\\.tb_blog"
+  batch-size: 1000
+logging:
+  level:
+    root: info
+    com.hmdp.relay: debug

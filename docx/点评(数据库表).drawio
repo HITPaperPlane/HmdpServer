@@ -1,0 +1,177 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" version="28.2.9">
+  <diagram name="第 1 页" id="KPojuWLNwXF8Xf6e9RQR">
+    <mxGraphModel dx="6531" dy="4145" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-104" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-73" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-105" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;&amp;nbsp;查看动态时：从收件箱读取&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&amp;nbsp;ZREVRANGE feed:1 0 9&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;从收件箱读前十条&lt;/font&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="NRH_4t1S9HhhJi66ZhHF-104" connectable="0" vertex="1">
+          <mxGeometry x="0.0624" y="1" relative="1" as="geometry">
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-114" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-112" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-1" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_user&lt;br&gt;用户表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;phone (唯一)&lt;br&gt;password&lt;br&gt;nick_name&lt;br&gt;icon&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="150" y="340" width="140" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-3" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_user_info&lt;br&gt;用户详情表&lt;br&gt;━━━━━━━━━&lt;br&gt;user_id (PK,FK)&lt;br&gt;city&lt;br&gt;introduce&lt;br&gt;fans/followee&lt;br&gt;gender/birthday&lt;br&gt;credits/level&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="-30" y="140" width="140" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-5" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_shop_type&lt;br&gt;商铺类型表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;name&lt;br&gt;icon&lt;br&gt;sort&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="200" y="-210" width="140" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-7" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_shop&lt;br&gt;商铺表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;type_id (FK)&lt;br&gt;name/address&lt;br&gt;x,y (经纬度)&lt;br&gt;avg_price&lt;br&gt;sold/comments&lt;br&gt;score&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="440" y="-240" width="140" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-101" value="" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-9" target="NRH_4t1S9HhhJi66ZhHF-71" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-9" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_blog&lt;br&gt;探店笔记表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;user_id (FK)&lt;br&gt;shop_id (FK)&lt;br&gt;title/content&lt;br&gt;images&lt;br&gt;liked/comments&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="510" y="-10" width="140" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-11" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_blog_comments&lt;br&gt;评论表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;user_id (FK)&lt;br&gt;blog_id (FK)&lt;br&gt;parent_id (FK)&lt;br&gt;answer_id&lt;br&gt;content/liked&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="805" y="360" width="140" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-98" value="" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-13" target="NRH_4t1S9HhhJi66ZhHF-75" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-13" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_follow&lt;br&gt;关注表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;user_id (FK)&lt;br&gt;follow_user_id (FK)&lt;br&gt;create_time&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="413" y="296" width="140" height="114" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-15" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_sign&lt;br&gt;签到表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;user_id (FK)&lt;br&gt;year/month/date&lt;br&gt;is_backup&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="-100" y="330" width="140" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-17" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_voucher&lt;br&gt;优惠券表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;shop_id (FK)&lt;br&gt;title/sub_title&lt;br&gt;pay_value&lt;br&gt;actual_value&lt;br&gt;type (0普通1秒杀)&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="1280" y="100" width="150" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-19" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_seckill_voucher&lt;br&gt;秒杀券表&lt;br&gt;━━━━━━━━━&lt;br&gt;voucher_id (PK,FK)&lt;br&gt;stock (库存)&lt;br&gt;begin_time&lt;br&gt;end_time&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="1290" y="510" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-110" value="" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-21" target="NRH_4t1S9HhhJi66ZhHF-77" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-21" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;tb_voucher_order&lt;br&gt;订单表&lt;br&gt;━━━━━━━━━&lt;br&gt;id (PK)&lt;br&gt;user_id (FK)&lt;br&gt;voucher_id (FK)&lt;br&gt;pay_type/status&lt;br&gt;pay_time/use_time&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;" parent="1" vertex="1">
+          <mxGeometry x="655" y="610" width="150" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-24" value="1对1&#xa;用户详情" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#6c8ebf;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-25" value="1对多&#xa;发表笔记" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d79b00;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-9" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-27" value="1对多&#xa;发表评论" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d79b00;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-11" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-29" value="1对多&#xa;关注/被关注" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d79b00;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-13" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-31" value="1对多&#xa;签到记录" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d79b00;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-15" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-33" value="1对多&#xa;下订单" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d79b00;exitX=1;exitY=1;exitDx=0;exitDy=0;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-21" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="240" y="100" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-36" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;1对多&lt;br&gt;商铺分类&lt;/font&gt;" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#82b366;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-5" target="NRH_4t1S9HhhJi66ZhHF-7" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-37" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;1对多&lt;br&gt;探店笔记&lt;/font&gt;" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#82b366;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-7" target="NRH_4t1S9HhhJi66ZhHF-9" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-39" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;1对多&lt;br&gt;发放优惠券&lt;/font&gt;" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#82b366;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-7" target="NRH_4t1S9HhhJi66ZhHF-17" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-85" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="NRH_4t1S9HhhJi66ZhHF-39" connectable="0" vertex="1">
+          <mxGeometry x="0.3073" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-42" value="1对多&#xa;笔记评论" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d6b656;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-9" target="NRH_4t1S9HhhJi66ZhHF-11" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-43" value="1对1&lt;br&gt;秒杀扩展&lt;br&gt;垂直分表" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-17" target="NRH_4t1S9HhhJi66ZhHF-19" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-45" value="1对多&#xa;优惠券订单" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-17" target="NRH_4t1S9HhhJi66ZhHF-21" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-47" value="自关联&#xa;parent_id&#xa;楼中楼评论" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#9673a6;dashed=1;curved=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-11" target="NRH_4t1S9HhhJi66ZhHF-11" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-97" value="" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-63" target="NRH_4t1S9HhhJi66ZhHF-15" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-63" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;sign:{userId}:{yyyyMM}&lt;br&gt;→ Bitmap结构&lt;br&gt;→ 每个bit代表一天&lt;br&gt;→ 1=已签到,0=未签到&lt;br&gt;→ 最多31位&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="-300" y="360" width="140" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-87" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-65" target="NRH_4t1S9HhhJi66ZhHF-7" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-65" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;cache:shop:{id}&lt;br&gt;→ String (JSON)&lt;br&gt;→ 商铺详情&lt;br&gt;→ 缓存击穿/穿透保护&lt;br&gt;→ 逻辑过期时间&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="440" y="-460" width="140" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-86" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-67" target="NRH_4t1S9HhhJi66ZhHF-5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-67" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;cache:shop:type:list&lt;br&gt;→ String (JSON)&lt;br&gt;→ 商铺类型列表&lt;br&gt;→ 全量缓存&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="20" y="-275" width="130" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-93" value="" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-69" target="NRH_4t1S9HhhJi66ZhHF-92" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-69" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;shop:geo:{typeId}&lt;br&gt;→ GEO地理位置&lt;br&gt;→ 存储经纬度&lt;br&gt;→ GEOSEARCH&lt;br&gt;  查询附近商铺&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="680" y="-275" width="130" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-71" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;blog:liked:{blogId}&lt;br&gt;→ ZSet&lt;br&gt;→ score=时间戳&lt;br&gt;→ member=userId&lt;br&gt;→ 点赞列表+排序&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="680" y="-30" width="130" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-73" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;feed:{userId}&lt;br&gt;→ ZSet&lt;br&gt;→ score=时间戳&lt;br&gt;→ member=blogId&lt;br&gt;→ 关注者推送流&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="140" width="140" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-75" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;follow:{userId}&lt;br&gt;→ Set&lt;br&gt;→ 存储关注的用户ID&lt;br&gt;→ 共同关注用SINTER&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="590" y="268" width="130" height="124" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-77" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-weight: normal;&quot;&gt;🔴 Redis核心&lt;br&gt;━━━━━━━━━&lt;br&gt;seckill:stock:{voucherId}&lt;br&gt;→ String (数字)&lt;br&gt;→ 库存数量&lt;br&gt;&lt;br&gt;seckill:order:{voucherId}&lt;br&gt;→ Set&lt;br&gt;→ 已下单的userId&lt;br&gt;→ 防止重复购买&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontFamily=Microsoft YaHei;fontSize=11;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="650" y="810" width="155" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-79" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis锁&lt;br&gt;━━━━━━━━━&lt;br&gt;lock:order:{userId}&lt;br&gt;→ String&lt;br&gt;→ 分布式锁&lt;br&gt;→ 防止一人一单&lt;br&gt;→ Redisson实现&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="620" width="160" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-88" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-7" target="NRH_4t1S9HhhJi66ZhHF-69" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-92" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;为什么用typeId:&lt;br&gt;https://www.notion.so/typeId-2a4994c192558034bca7db5cd1796794?source=copy_link&lt;/font&gt;" style="whiteSpace=wrap;html=1;fontSize=11;fontFamily=Microsoft YaHei;fillColor=#ffcccc;strokeColor=#b85450;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="690" y="-390" width="245" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-102" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-9" target="NRH_4t1S9HhhJi66ZhHF-73" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-103" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;向所有关注自己的&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;userId推流&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&amp;nbsp;ZADD feed:1 1704614400&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;（时间戳） 101（笔记ID）&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="NRH_4t1S9HhhJi66ZhHF-102" connectable="0" vertex="1">
+          <mxGeometry x="-0.0862" y="4" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-111" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;login:token:{token}&lt;br&gt;→ Hash结构&lt;br&gt;→ 存用户信息&lt;br&gt;→ TTL 30分钟&lt;br&gt;&lt;br&gt;login:code:{phone}&lt;br&gt;→ String&lt;br&gt;→ 验证码&lt;br&gt;→ TTL 2分钟&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="-70" y="670" width="140" height="185" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-112" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;br&gt;login:limit:one:{phone}&lt;br&gt;→ ZSet (滑动窗口)&lt;br&gt;→ 1分钟内请求次数&lt;br&gt;&lt;br&gt;login:limit:two:{phone}&lt;br&gt;→ ZSet&lt;br&gt;→ 5分钟内请求次数&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="80" y="670" width="120" height="185" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-113" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;🔴 Redis缓存&lt;br&gt;━━━━━━━━━&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&lt;br&gt;&amp;nbsp;sms:sendtime:{phone}&amp;nbsp;&lt;br&gt;-&amp;gt; ZSet&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;-&amp;gt; 记录发送时间&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;-&amp;gt; TTL 永久&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;;shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcccc;strokeColor=#b85450;fontFamily=Microsoft YaHei;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="-200" y="670" width="120" height="185" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-115" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-111" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="NRH_4t1S9HhhJi66ZhHF-116" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0;exitY=1;exitDx=0;exitDy=0;" parent="1" source="NRH_4t1S9HhhJi66ZhHF-1" target="NRH_4t1S9HhhJi66ZhHF-113" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
