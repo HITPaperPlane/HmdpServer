@@ -21,4 +21,5 @@ target/
 # Runtime / local
 logs/
 /logs
+uploads/
 *.pid

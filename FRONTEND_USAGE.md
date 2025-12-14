@@ -9,7 +9,7 @@
 ## 2. 页面导航与身份
 - 顶部导航：切换「用户站点 / 商家中心 / 运营后台」，右上角登录/退出。侧边栏根据身份显示对应菜单。
 - 登录入口 `/login`：
-  - 用户：手机号/邮箱 + `/user/code` + `/user/login`。
+  - 用户：邮箱 + `/user/code` + `/user/login`。
   - 商家：邮箱 + `/merchant/code` + `/merchant/login`（首次会补齐商家、角色表）。
   - 管理员：账号 `admin` / 密码 `Admin#123456` 走 `/admin/login`。
 

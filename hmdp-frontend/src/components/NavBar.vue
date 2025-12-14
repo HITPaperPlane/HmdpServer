@@ -40,6 +40,7 @@ import { ref, computed } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import LoginModal from './LoginModal.vue';
+import { request } from '../api/http';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -50,8 +51,14 @@ const avatarText = computed(() => {
   return name.charAt(0).toUpperCase();
 });
 
-function logout() {
-  if(confirm('确定要退出登录吗？')) {
+async function logout() {
+  if (!confirm('确定要退出登录吗？')) return;
+  const token = session.token;
+  try {
+    if (token) await request('/user/logout', { method: 'POST', token });
+  } catch (e) {
+    // best-effort: still clear local session
+  } finally {
     session.clearSession();
     router.push('/');
   }

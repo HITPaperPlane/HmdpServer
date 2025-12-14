@@ -53,24 +53,24 @@ public class MerchantAuthController {
 
     @PostMapping("/code")
     public Result sendCode(@RequestBody LoginFormDTO form) throws MessagingException {
-        return userService.sendCode(form.getPhone(), null);
+        return userService.sendCode(form.getEmail(), null);
     }
 
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm) {
-        String phone = loginForm.getPhone();
+        String email = loginForm.getEmail();
         String code = loginForm.getCode();
-        if (RegexUtils.isEmailInvalid(phone)) {
+        if (RegexUtils.isEmailInvalid(email)) {
             return Result.fail("邮箱格式不正确！！");
         }
-        String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
+        String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + email);
         if (cacheCode == null || !Objects.equals(cacheCode, code)) {
             return Result.fail("无效的验证码");
         }
-        User user = userMapper.selectOne(new QueryWrapper<User>().eq("phone", phone));
+        User user = userMapper.selectOne(new QueryWrapper<User>().eq("email", email));
         if (user == null) {
             user = new User();
-            user.setPhone(phone);
+            user.setEmail(email);
             user.setNickName(SystemConstants.USER_NICK_NAME_PREFIX + RandomUtil.randomString(10));
             user.setRole(MERCHANT_ROLE_CODE);
             userMapper.insert(user);
@@ -86,12 +86,12 @@ public class MerchantAuthController {
         HashMap<String, String> userMap = new HashMap<>();
         userMap.put("id", String.valueOf(dto.getId()));
         userMap.put("nickName", dto.getNickName());
-        userMap.put("icon", dto.getIcon());
+        userMap.put("icon", Objects.toString(dto.getIcon(), ""));
         userMap.put("role", MERCHANT_ROLE_CODE);
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
         stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MINUTES);
-        stringRedisTemplate.delete(LOGIN_CODE_KEY + phone);
+        stringRedisTemplate.delete(LOGIN_CODE_KEY + email);
         return Result.ok(token);
     }
 

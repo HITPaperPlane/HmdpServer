@@ -5,22 +5,139 @@
 - Redis 集群（三主三从，密码 `123456`）：
   - `123.56.100.212:6379`，`39.97.193.168:6379`，`115.190.193.236:6379`
 - RabbitMQ：`115.190.193.236:5672`，用户 `paperplane` / `123456`，vhost `/`。
+- Node.js：用于构建/启动 `hmdp-frontend`（建议 Node 18+）。
 
 ## 服务目录
-- `dianping/`：现有业务（登录、店铺、笔记、秒杀入口等），端口 8081。
+- `hmdp-service/`：主服务（登录、店铺、笔记、秒杀入口等），端口 8088。
 - `order-service/`：订单落库与幂等消费，端口 8083。
 - `relay-service/`：Redis Outbox → RabbitMQ 搬运，以及后续 Canal 订阅缓存同步，端口 8084。
+- `hmdp-frontend/`：单站点 Web 前端（同一套页面覆盖用户/商家/管理员）。
+- `nginx/`：Nginx 反代/静态托管示例配置。
 
 ## 构建与启动
-在各目录下执行：
+统一要求：所有日志输出到仓库根目录 `logs/`（不存在先创建）。
+
+### 0) 初始化日志目录
 ```bash
-mvn clean package -DskipTests
-java -jar target/<artifact>.jar
+mkdir -p logs
 ```
-或使用 `mvn spring-boot:run`。
+
+### 1) hmdp-service（8088）
+构建：
+```bash
+cd hmdp-service
+mvn clean package -DskipTests
+```
+启动（推荐 jar 方式，日志落 `logs/`）：
+```bash
+nohup java -jar target/hm-dianping-0.0.1-SNAPSHOT.jar --server.port=8088 > ../logs/hmdp-service.log 2>&1 & echo $!
+```
+查看日志：
+```bash
+tail -f logs/hmdp-service.log
+```
+停止/重启（按端口）：
+```bash
+kill $(lsof -ti:8088)
+# 然后再次执行 nohup 启动命令
+```
+
+### 2) order-service（8083）
+构建：
+```bash
+cd order-service
+mvn clean package -DskipTests
+```
+启动：
+```bash
+nohup java -jar target/order-service-0.0.1-SNAPSHOT.jar --server.port=8083 > ../logs/order-service.log 2>&1 & echo $!
+```
+查看日志：
+```bash
+tail -f logs/order-service.log
+```
+停止：
+```bash
+kill $(lsof -ti:8083)
+```
+
+### 3) relay-service（8084）
+构建：
+```bash
+cd relay-service
+mvn clean package -DskipTests
+```
+启动：
+```bash
+nohup java -jar target/relay-service-0.0.1-SNAPSHOT.jar --server.port=8084 > ../logs/relay-service.log 2>&1 & echo $!
+```
+查看日志：
+```bash
+tail -f logs/relay-service.log
+```
+停止：
+```bash
+kill $(lsof -ti:8084)
+```
+
+### 4) hmdp-frontend（Web）
+开发启动（可用于服务器上临时联调，日志落 `logs/`）：
+```bash
+npm --prefix hmdp-frontend install
+nohup npm --prefix hmdp-frontend run dev -- --host 0.0.0.0 --port 5173 > logs/hmdp-frontend.log 2>&1 & echo $!
+tail -f logs/hmdp-frontend.log
+```
+
+生产构建（生成 `hmdp-frontend/dist`）：
+```bash
+npm --prefix hmdp-frontend install
+npm --prefix hmdp-frontend run build
+```
+
+## Nginx 挂载（静态前端 + /api 反代）
+说明：`hmdp-frontend` 是 SPA，`/admin/**`、`/merchant/**` 等都需要回落到 `index.html`。
+
+示例配置（可保存为 `/etc/nginx/conf.d/hmdp.conf`，也可参考并更新仓库内 `nginx/hmdp.conf`）：
+```nginx
+server {
+    listen 80;
+    server_name hmdp.local;
+
+    # 前端静态资源（hmdp-frontend/dist）
+    location / {
+        root /home/gmr/Postgraduate/HMDP/HmdpServer/hmdp-frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 代理 → hmdp-service 8088
+    location /api/ {
+        proxy_pass http://127.0.0.1:8088/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        rewrite ^/api/(.*)$ /$1 break;
+    }
+
+    # 图片访问（头像/笔记图片等，后端已用 Spring 静态映射暴露 /imgs/**）
+    location /imgs/ {
+        proxy_pass http://127.0.0.1:8088/imgs/;
+        proxy_set_header Host $host;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/json application/xml text/plain image/svg+xml;
+}
+```
+
+加载/校验/重载（仅记录命令，不在此处执行）：
+```bash
+sudo nginx -t
+sudo nginx -s reload
+```
 
 ## 关键配置
-- `dianping/src/main/resources/application.yaml`
+### 后端
+- `hmdp-service/src/main/resources/application.yaml`
   - Redis 指向集群；RabbitMQ 指向 `115.190.193.236`；RabbitListener 关闭自动启动（消费交由 order-service）。
 - `order-service/src/main/resources/application.yaml`
   - 数据源同上；RabbitMQ 同上；消费队列 `seckillQueue`，QoS=50，幂等基于 `request_id` 唯一键与业务校验。
@@ -42,4 +159,8 @@ java -jar target/<artifact>.jar
 ## 日志与排障
 - Redis 集群日志：`/var/log/redis/redis-server*.log`
 - RabbitMQ：`/var/log/rabbitmq/`
-- 服务日志：控制台或各自 `logging.level` 配置，必要时增加 `--logging.file.name`。
+- 服务日志：统一落仓库根目录 `logs/`：
+  - `logs/hmdp-service.log`
+  - `logs/order-service.log`
+  - `logs/relay-service.log`
+  - `logs/hmdp-frontend.log`（若使用 `npm run dev` 后台启动）

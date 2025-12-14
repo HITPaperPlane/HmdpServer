@@ -30,3 +30,27 @@ export async function upload(path, file, token) {
   }
   return data.data;
 }
+
+function getStoredToken() {
+  try {
+    return localStorage.getItem('hmdp-token') || '';
+  } catch {
+    return '';
+  }
+}
+
+// axios-like minimal wrapper (for legacy/new pages)
+export default {
+  get(path) {
+    return request(path, { method: 'GET', token: getStoredToken() });
+  },
+  post(path, body) {
+    return request(path, { method: 'POST', body, token: getStoredToken() });
+  },
+  put(path, body) {
+    return request(path, { method: 'PUT', body, token: getStoredToken() });
+  },
+  delete(path, body) {
+    return request(path, { method: 'DELETE', body, token: getStoredToken() });
+  }
+};

@@ -1,9 +1,9 @@
 package com.hmdp.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.hmdp.dto.UserDTO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -34,14 +34,9 @@ public class User implements Serializable {
     private Long id;
 
     /**
-     * 手机号码
+     * 登录邮箱（唯一）
      */
-    private String phone;
-
-    /**
-     * 密码，加密存储
-     */
-    private String password;
+    private String email;
 
     /**
      * 昵称，默认是随机字符
@@ -51,6 +46,7 @@ public class User implements Serializable {
     /**
      * 用户头像
      */
+    @TableField(exist = false)
     private String icon = "";
 
     /**

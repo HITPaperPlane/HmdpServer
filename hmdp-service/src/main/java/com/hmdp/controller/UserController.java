@@ -5,12 +5,14 @@ import cn.hutool.core.bean.BeanUtil;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
+import com.hmdp.dto.UserUpdateDTO;
 import com.hmdp.entity.User;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.MailUtils;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,8 @@ import javax.annotation.Resource;
 import javax.mail.MessagingException;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpServletRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import cn.hutool.core.util.StrUtil;
 
 /**
  * <p>
@@ -39,12 +43,15 @@ public class UserController {
     @Resource
     private IUserInfoService userInfoService;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
     /**
      * 发送手机验证码
      */
     @PostMapping("code")
-    public Result sendCode(@RequestParam("phone") String phone, HttpSession session) throws MessagingException {
-        return userService.sendCode(phone, session);
+    public Result sendCode(@RequestParam("email") String email, HttpSession session) throws MessagingException {
+        return userService.sendCode(email, session);
     }
 
     /**
@@ -62,9 +69,22 @@ public class UserController {
      * @return 无
      */
     @PostMapping("/logout")
-    public Result logout(){
-        // TODO 实现登出功能
-        return Result.fail("功能未完成");
+    public Result logout(HttpServletRequest request){
+        String token = request.getHeader("authorization");
+        if (StrUtil.isNotBlank(token)) {
+            stringRedisTemplate.delete(RedisConstants.LOGIN_USER_KEY + token);
+        }
+        UserHolder.removeUser();
+        return Result.ok();
+    }
+
+    /**
+     * 更新个人资料（头像、昵称、性别、生日、城市、介绍）
+     */
+    @PostMapping("/update")
+    public Result updateInfo(@RequestBody UserUpdateDTO dto, HttpServletRequest request) {
+        String token = request.getHeader("authorization");
+        return userService.updateInfo(dto, token);
     }
 
     @GetMapping("/me")
@@ -111,6 +131,12 @@ public class UserController {
     @GetMapping("/sign/count")
     public Result signCount(){
         return userService.signCount();
+    }
+
+    // 当月签到详情（返回已签到的日期列表，用于日历高亮）
+    @GetMapping("/sign/detail")
+    public Result signDetail() {
+        return userService.signDetail();
     }
 
     @PostMapping("/uv")

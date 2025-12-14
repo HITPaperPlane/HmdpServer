@@ -15,43 +15,69 @@ public class MailUtils {
     }
     //发送email处的代码
     public static void sendtoMail(String email, String code) throws MessagingException {
-        // 创建Properties 类用于记录邮箱的一些属性
+        String host = "smtp.qq.com";
+        String user = "2776872856@qq.com";
+        String pass = "ayezoogrqwqodcha";
+
+        MessagingException last = null;
+        for (Properties props : new Properties[]{
+                buildSsl465Props(host, user, pass),
+                buildStartTls587Props(host, user, pass)
+        }) {
+            try {
+                Transport.send(buildMessage(props, email, code));
+                return;
+            } catch (MessagingException e) {
+                last = e;
+            }
+        }
+        throw last != null ? last : new MessagingException("发送邮件失败");
+    }
+
+    private static Properties buildSsl465Props(String host, String user, String pass) {
         Properties props = new Properties();
-        // 表示SMTP发送邮件，必须进行身份验证
         props.put("mail.smtp.auth", "true");
-        //此处填写SMTP服务器
-        props.put("mail.smtp.host", "smtp.qq.com");
-        //端口号，QQ邮箱端口587
+        props.put("mail.smtp.host", host);
+        props.put("mail.smtp.port", "465");
+        props.put("mail.smtp.ssl.enable", "true");
+        props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+        props.put("mail.smtp.ssl.trust", host);
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.user", user);
+        props.put("mail.password", pass);
+        return props;
+    }
+
+    private static Properties buildStartTls587Props(String host, String user, String pass) {
+        Properties props = new Properties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.host", host);
         props.put("mail.smtp.port", "587");
-        // 此处填写，写信人的账号
-        props.put("mail.user", "1274731114@qq.com");
-        // 此处填写16位STMP口令
-        props.put("mail.password", "riufdudshcaijdbi");
-        // 构建授权信息，用于进行SMTP进行身份验证
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.starttls.required", "true");
+        props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+        props.put("mail.smtp.ssl.trust", host);
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.user", user);
+        props.put("mail.password", pass);
+        return props;
+    }
+
+    private static MimeMessage buildMessage(Properties props, String toEmail, String code) throws MessagingException {
         Authenticator authenticator = new Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
-                // 用户名、密码
-                String userName = props.getProperty("mail.user");
-                String password = props.getProperty("mail.password");
-                return new PasswordAuthentication(userName, password);
+                return new PasswordAuthentication(props.getProperty("mail.user"), props.getProperty("mail.password"));
             }
         };
-        // 使用环境属性和授权信息，创建邮件会话
         Session mailSession = Session.getInstance(props, authenticator);
-        // 创建邮件消息
         MimeMessage message = new MimeMessage(mailSession);
-        // 设置发件人
-        InternetAddress form = new InternetAddress(props.getProperty("mail.user"));
-        message.setFrom(form);
-        // 设置收件人的邮箱
-        InternetAddress to = new InternetAddress(email);
-        message.setRecipient(MimeMessage.RecipientType.TO, to);
-        // 设置邮件标题
+        message.setFrom(new InternetAddress(props.getProperty("mail.user")));
+        message.setRecipient(MimeMessage.RecipientType.TO, new InternetAddress(toEmail));
         message.setSubject("验证码");
-        // 设置邮件的内容体
-        message.setContent("尊敬的用户:你好!\n注册验证码为:" + code + "(有效期为一分钟,请勿告知他人)", "text/html;charset=UTF-8");
-        // 最后当然就是发送邮件啦
-        Transport.send(message);
+        message.setContent("尊敬的用户:你好!<br/>注册验证码为: <b>" + code + "</b> (有效期为一分钟,请勿告知他人)", "text/html;charset=UTF-8");
+        return message;
     }
 
     //用来产生一个验证码的逻辑代码

@@ -6,14 +6,17 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Follow;
+import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.FollowMapper;
 import com.hmdp.service.IFollowService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +39,11 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     @Autowired
     private IUserService userService;
 
+    @Autowired
+    private IUserInfoService userInfoService;
+
     @Override
+    @Transactional
     public Result follow(Long followUserId, Boolean isFellow) {
         //获取当前用户id
         Long userId = UserHolder.getUser().getId();
@@ -48,6 +55,18 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             follow.setUserId(userId);
             follow.setFollowUserId(followUserId);
             boolean successed = save(follow);
+            if (successed) {
+                ensureUserInfoExists(userId);
+                ensureUserInfoExists(followUserId);
+                userInfoService.lambdaUpdate()
+                        .eq(UserInfo::getUserId, userId)
+                        .setSql("followee = followee + 1")
+                        .update();
+                userInfoService.lambdaUpdate()
+                        .eq(UserInfo::getUserId, followUserId)
+                        .setSql("fans = fans + 1")
+                        .update();
+            }
             //则将数据也写入Redis
             if (successed) {
                 stringRedisTemplate.opsForSet().add(key, followUserId.toString());
@@ -57,6 +76,18 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 //            delete from tb_follow where user_id = ?  and follow_user_id = ?
             boolean successed=remove(new QueryWrapper<Follow>().eq("user_id", userId)
                     .eq("follow_user_id",followUserId));
+            if (successed) {
+                ensureUserInfoExists(userId);
+                ensureUserInfoExists(followUserId);
+                userInfoService.lambdaUpdate()
+                        .eq(UserInfo::getUserId, userId)
+                        .setSql("followee = IF(followee > 0, followee - 1, 0)")
+                        .update();
+                userInfoService.lambdaUpdate()
+                        .eq(UserInfo::getUserId, followUserId)
+                        .setSql("fans = IF(fans > 0, fans - 1, 0)")
+                        .update();
+            }
             //则将数据也从Redis中移除
             if (successed){
                 stringRedisTemplate.opsForSet().remove(key,followUserId.toString());
@@ -94,5 +125,27 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         List<UserDTO> userDTOS = userService.listByIds(ids).stream().map(user ->
                 BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
         return Result.ok(userDTOS);
+    }
+
+    private void ensureUserInfoExists(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        UserInfo exists = userInfoService.getById(userId);
+        if (exists != null) {
+            return;
+        }
+        UserInfo info = new UserInfo()
+                .setUserId(userId)
+                .setGender(0)
+                .setLevel(0)
+                .setCredits(0)
+                .setFans(0)
+                .setFollowee(0);
+        try {
+            userInfoService.save(info);
+        } catch (Exception ignore) {
+            // concurrent insert
+        }
     }
 }

@@ -30,8 +30,13 @@ public class UserInfo implements Serializable {
     /**
      * 主键，用户id
      */
-    @TableId(value = "user_id", type = IdType.AUTO)
+    @TableId(value = "user_id", type = IdType.INPUT)
     private Long userId;
+
+    /**
+     * 用户头像
+     */
+    private String icon;
 
     /**
      * 城市名称
@@ -54,9 +59,9 @@ public class UserInfo implements Serializable {
     private Integer followee;
 
     /**
-     * 性别，0：男，1：女
+     * 性别，0/1
      */
-    private Boolean gender;
+    private Integer gender;
 
     /**
      * 生日
@@ -71,7 +76,7 @@ public class UserInfo implements Serializable {
     /**
      * 会员级别，0~9级,0代表未开通会员
      */
-    private Boolean level;
+    private Integer level;
 
     /**
      * 创建时间

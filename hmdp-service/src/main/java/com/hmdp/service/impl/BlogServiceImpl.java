@@ -27,7 +27,12 @@ import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
@@ -54,15 +59,67 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private IFollowService followService;
 
+    @Resource(name = "applicationTaskExecutor")
+    private Executor taskExecutor;
+
     @Override
     public Result queryById(Integer id) {
-        Blog blog = getById(id);
+        final Long blogId = id == null ? null : id.longValue();
+        if (blogId == null) {
+            return Result.fail("参数错误");
+        }
+
+        final UserDTO currentUser = UserHolder.getUser();
+        final Long currentUserId = currentUser == null ? null : currentUser.getId();
+
+        CompletableFuture<Blog> blogFuture = CompletableFuture.supplyAsync(() -> getById(blogId), taskExecutor);
+        CompletableFuture<User> userFuture = blogFuture.thenApplyAsync(blog -> {
+            if (blog == null || blog.getUserId() == null) {
+                return null;
+            }
+            return userService.getById(blog.getUserId());
+        }, taskExecutor);
+        CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
+            if (currentUserId == null) {
+                return null;
+            }
+            String key = BLOG_LIKED_KEY + blogId;
+            Double score = stringRedisTemplate.opsForZSet().score(key, currentUserId.toString());
+            return score != null;
+        }, taskExecutor);
+
+        Blog blog;
+        try {
+            blog = blogFuture.join();
+        } catch (CompletionException e) {
+            log.error("查询博客失败，blogId=" + blogId, e);
+            return Result.fail("查询失败，请稍后重试");
+        }
+
         if (blog == null) {
             return Result.fail("博客不存在或已被删除");
         }
-        queryBlogUser(blog);
-        //追加判断blog是否被当前用户点赞，逻辑封装到isBlogLiked方法中
-        isBlogLiked(blog);
+
+        try {
+            User author = userFuture.join();
+            if (author != null) {
+                blog.setName(author.getNickName());
+                blog.setIcon(author.getIcon());
+            }
+            blog.setIsLike(likeFuture.join());
+        } catch (CompletionException e) {
+            log.error("异步加载博客详情失败，blogId=" + blogId, e);
+            // 兜底：同步查询（尽量给出可用结果）
+            try {
+                queryBlogUser(blog);
+            } catch (Exception ignore) {
+            }
+            try {
+                isBlogLiked(blog);
+            } catch (Exception ignore) {
+            }
+        }
+
         return Result.ok(blog);
     }
 
@@ -74,12 +131,31 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
         // 获取当前页数据
         List<Blog> records = page.getRecords();
-        // 查询用户
-        records.forEach(blog -> {
-            queryBlogUser(blog);
+        if (records == null || records.isEmpty()) {
+            return Result.ok(Collections.emptyList());
+        }
+
+        // 批量查询发布者信息（避免 N+1）
+        Set<Long> userIds = records.stream()
+                .map(Blog::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, User> userMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
+        // 填充发布者信息 + 点赞状态
+        for (Blog blog : records) {
+            User u = userMap.get(blog.getUserId());
+            if (u != null) {
+                blog.setName(u.getNickName());
+                blog.setIcon(u.getIcon());
+            }
             //追加判断blog是否被当前用户点赞，逻辑封装到isBlogLiked方法中
             isBlogLiked(blog);
-        });
+        }
         return Result.ok(records);
     }
 
@@ -100,6 +176,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private void queryBlogUser(Blog blog) {
         Long userId = blog.getUserId();
         User user = userService.getById(userId);
+        if (user == null) {
+            return;
+        }
         blog.setName(user.getNickName());
         blog.setIcon(user.getIcon());
     }
