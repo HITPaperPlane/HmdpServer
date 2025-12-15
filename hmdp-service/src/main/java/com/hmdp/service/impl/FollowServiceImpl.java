@@ -5,13 +5,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
+import com.hmdp.entity.Blog;
 import com.hmdp.entity.Follow;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.FollowMapper;
 import com.hmdp.service.IFollowService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IBlogService;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -41,6 +45,9 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
     @Autowired
     private IUserInfoService userInfoService;
+
+    @Autowired
+    private IBlogService blogService;
 
     @Override
     @Transactional
@@ -76,6 +83,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             //则将数据也写入Redis
             if (successed) {
                 stringRedisTemplate.opsForSet().add(key, followUserId.toString());
+                preloadRecentBlogs(userId, followUserId);
             }
         } else {
             //取关：只删除一条，保持幂等 & 计数准确（避免历史重复数据导致一次删除多条）
@@ -138,6 +146,29 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             dto.setIcon(iconMap.get(dto.getId()));
         }
         return Result.ok(userDTOS);
+    }
+
+    private void preloadRecentBlogs(Long followerId, Long followUserId) {
+        List<Blog> latest = blogService.query()
+                .eq("user_id", followUserId)
+                .orderByDesc("create_time")
+                .last("limit 10")
+                .list();
+        if (latest == null || latest.isEmpty()) {
+            return;
+        }
+        String feedKey = RedisConstants.FEED_KEY + followerId;
+        stringRedisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            for (Blog blog : latest) {
+                long ts = blog.getCreateTime() == null ? System.currentTimeMillis()
+                        : blog.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                connection.zAdd(feedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        ts,
+                        blog.getId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+        stringRedisTemplate.expire(feedKey, 1, TimeUnit.DAYS);
     }
 
     private void ensureUserInfoExists(Long userId) {

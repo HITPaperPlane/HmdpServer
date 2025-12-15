@@ -144,7 +144,7 @@
             <van-field
                 v-model="compose.shopKeyword"
                 label="关联店铺"
-                placeholder="输入店铺名称关键词，选择一个"
+                placeholder="输入店铺名称关键词，选择一个（可选）"
                 clearable
                 @update:model-value="onShopKeywordChange"
             />
@@ -159,7 +159,7 @@
                 <div class="muted">ID {{ s.id }} · {{ s.area || '未知商圈' }} · ¥{{ s.avgPrice || 0 }}/人</div>
               </div>
             </div>
-            <van-field :model-value="compose.shopId ? `已选择：${compose.shopName}（ID ${compose.shopId}）` : ''" label="已选店铺" readonly placeholder="请先选择店铺" />
+            <van-field :model-value="compose.shopId ? `已选择：${compose.shopName}（ID ${compose.shopId}）` : ''" label="已选店铺" readonly placeholder="可选：不关联则留空" />
             <van-field v-model="compose.title" label="标题" placeholder="给笔记起个标题" />
 
             <van-field name="images" label="图片">
@@ -190,7 +190,7 @@
 
           <div class="compose-actions">
             <van-button block type="primary" native-type="submit" :disabled="submitDisabled">发布</van-button>
-            <div class="muted" style="margin-top:8px;">提示：发布会推送到粉丝收件箱 `feed:{userId}`</div>
+            <div class="muted" style="margin-top:8px;">提示：可选关联店铺，发布会推送到粉丝收件箱 `feed:{userId}`</div>
           </div>
         </van-form>
       </div>
@@ -239,7 +239,9 @@ const compose = reactive({
 });
 
 const submitDisabled = computed(() => {
-  return !compose.shopId || !compose.title.trim() || !compose.content.trim();
+  const titleOk = compose.title.trim().length > 0;
+  const contentOk = compose.content && compose.content.replace(/<(.|\\n)*?>/g, '').trim().length > 0;
+  return !(titleOk && contentOk);
 });
 
 function normalizeBlog(b) {
@@ -367,7 +369,7 @@ async function afterReadBlogImage(fileItem) {
 async function submitBlog() {
   if (submitDisabled.value) return;
   const payload = {
-    shopId: Number(compose.shopId),
+    shopId: compose.shopId ? Number(compose.shopId) : null,
     title: compose.title.trim(),
     images: compose.fileList.map(f => f.name).filter(Boolean).join(','),
     content: compose.content

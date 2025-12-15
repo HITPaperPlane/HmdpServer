@@ -93,6 +93,21 @@
       </van-row>
     </div>
 
+    <div class="section-card">
+      <div class="card-header">
+        <span class="title">我发布的笔记</span>
+        <van-button size="small" plain type="primary" @click="loadMyBlogs(true)">刷新</van-button>
+      </div>
+      <div v-if="loadingMyBlogs" class="muted">加载中...</div>
+      <div v-else-if="myBlogs.length === 0" class="muted">暂无发布的笔记</div>
+      <ul v-else class="my-blog-list">
+        <li v-for="b in myBlogs" :key="b.id" class="my-blog-item">
+          <div class="blog-title">{{ b.title }}</div>
+          <div class="muted small-text">点赞 {{ b.liked || 0 }} · 店铺 {{ b.shopId || '无' }} · {{ b.createTime || '' }}</div>
+        </li>
+      </ul>
+    </div>
+
     <div class="logout-box">
       <van-button block type="default" @click="handleLogout">退出登录</van-button>
     </div>
@@ -189,6 +204,8 @@ export default {
 
     const todayUv = ref(0);
     const totalUv = ref(0);
+    const myBlogs = ref([]);
+    const loadingMyBlogs = ref(false);
 
     const showEdit = ref(false);
     const editForm = ref({
@@ -263,10 +280,28 @@ export default {
         todayUv.value = todayUvRes || 0;
         const totalUvRes = await axios.get('/user/uv?days=7');
         totalUv.value = totalUvRes || 0;
+
+        await loadMyBlogs();
       } catch (e) {
         showToast(e?.message || '加载失败，请重新登录');
         session.clearSession();
         router.push('/login');
+      }
+    };
+
+    const loadMyBlogs = async (refresh = false) => {
+      if (loadingMyBlogs.value) return;
+      loadingMyBlogs.value = true;
+      try {
+        const list = await axios.get('/blog/of/me?current=1');
+        myBlogs.value = Array.isArray(list) ? list.slice(0, 10) : [];
+        if (refresh) {
+          showSuccessToast('已刷新我的笔记');
+        }
+      } catch (e) {
+        showToast(e?.message || '加载笔记失败');
+      } finally {
+        loadingMyBlogs.value = false;
       }
     };
 
@@ -358,7 +393,10 @@ export default {
       handleSign,
       onUpdateProfile,
       goBack,
-      handleLogout
+      handleLogout,
+      myBlogs,
+      loadingMyBlogs,
+      loadMyBlogs
     };
   }
 };
@@ -421,6 +459,26 @@ export default {
 
 .arrow-icon {
   opacity: 0.7;
+}
+
+.my-blog-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.my-blog-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.my-blog-item .blog-title {
+  font-weight: 700;
+  color: #111;
+}
+
+.small-text {
+  font-size: 12px;
 }
 
 .stats-row {

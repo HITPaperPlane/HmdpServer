@@ -21,6 +21,7 @@ import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
@@ -92,12 +94,15 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }, taskExecutor);
         CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
             if (currentUserId == null) {
-                return null;
+                return false;
             }
             String key = BLOG_LIKED_KEY + blogId;
             Double score = stringRedisTemplate.opsForZSet().score(key, currentUserId.toString());
             return score != null;
-        }, taskExecutor);
+        }, taskExecutor).exceptionally(e -> {
+            log.warn("Redis点赞状态查询失败，降级为未点赞，blogId=" + blogId + ", err=" + e.getMessage());
+            return false;
+        });
 
         Blog blog;
         try {
@@ -120,7 +125,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             if (authorInfo != null) {
                 blog.setIcon(authorInfo.getIcon());
             }
-            blog.setIsLike(likeFuture.join());
+            blog.setIsLike(Boolean.TRUE.equals(likeFuture.join()));
         } catch (CompletionException e) {
             log.error("异步加载博客详情失败，blogId=" + blogId, e);
             // 兜底：同步查询（尽量给出可用结果）
@@ -128,10 +133,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 queryBlogUser(blog);
             } catch (Exception ignore) {
             }
-            try {
-                isBlogLiked(blog);
-            } catch (Exception ignore) {
-            }
+            blog.setIsLike(false);
         }
 
         return Result.ok(blog);
@@ -267,21 +269,22 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 获取登录用户
         UserDTO user = UserHolder.getUser();
         blog.setUserId(user.getId());
+        if (blog.getShopId() == null) {
+            blog.setShopId(0L);
+        }
         // 保存探店博文
         boolean isSuccess = blogService.save(blog);
         if (!isSuccess)
         {
             return Result.fail("新增笔记失败！");
         }
-        //如果保存成功，则获取保存笔记的发布者id，用该id去follow_user表中查对应的粉丝id
-//        select * from tb_follower where follow_user_id = ?
-        List<Follow> followUsers = followService.query().eq("follow_user_id", user.getId()).list();
-        for (Follow follow : followUsers) {
-            Long userId = follow.getUserId();
-            String key = FEED_KEY+ userId;
-            //推送数据,每一个粉丝都有自己的收件箱
-            stringRedisTemplate.opsForZSet().add(key, blog.getId().toString(), System.currentTimeMillis());
-        }
+        // 将发布事件写入 Outbox，异步推送粉丝收件箱
+        com.hmdp.dto.FeedMessage message = new com.hmdp.dto.FeedMessage()
+                .setAuthorId(user.getId())
+                .setBlogId(blog.getId())
+                .setTimestamp(System.currentTimeMillis());
+        stringRedisTemplate.opsForList().leftPush(com.hmdp.utils.RedisConstants.FEED_OUTBOX_KEY,
+                cn.hutool.json.JSONUtil.toJsonStr(message));
 
         // 返回id
         return Result.ok(blog.getId());
@@ -294,10 +297,49 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         //2. 查询该用户收件箱（之前我们存的key是固定前缀 + 粉丝id），所以根据当前用户id就可以查询是否有关注的人发了笔记
         String key = FEED_KEY + userId;
         Set<ZSetOperations.TypedTuple<String>> typeTuples = stringRedisTemplate.opsForZSet()
-                .reverseRangeByScoreWithScores(key, 0, max, offset, 2);
+                .reverseRangeByScoreWithScores(key, 0, max, offset, SystemConstants.MAX_PAGE_SIZE);
         //3. 非空判断
         if (typeTuples == null || typeTuples.isEmpty()){
-            return Result.ok(Collections.emptyList());
+            if (offset != null && offset > 0) {
+                return Result.ok(Collections.emptyList());
+            }
+            // Redis 缺数据时回源 DB 重建一页
+            List<Long> followIds = followService.query()
+                    .eq("user_id", userId)
+                    .list()
+                    .stream()
+                    .map(Follow::getFollowUserId)
+                    .collect(Collectors.toList());
+            if (followIds.isEmpty()) {
+                return Result.ok(Collections.emptyList());
+            }
+            List<Blog> fallbackBlogs = query().in("user_id", followIds)
+                    .orderByDesc("create_time")
+                    .last("limit " + SystemConstants.MAX_PAGE_SIZE)
+                    .list();
+            if (fallbackBlogs.isEmpty()) {
+                return Result.ok(Collections.emptyList());
+            }
+            enrichBlogs(fallbackBlogs, userId);
+            // 回填 inbox，防止重复回源
+            stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                for (Blog blog : fallbackBlogs) {
+                    long ts = blog.getCreateTime() == null ? System.currentTimeMillis()
+                            : blog.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    connection.zAdd(key.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            ts,
+                            blog.getId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                return null;
+            });
+            stringRedisTemplate.expire(key, 1, TimeUnit.DAYS);
+            ScrollResult scrollResult = new ScrollResult();
+            scrollResult.setList(fallbackBlogs);
+            long minTs = fallbackBlogs.get(fallbackBlogs.size() - 1).getCreateTime()
+                    .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            scrollResult.setMinTime(minTs);
+            scrollResult.setOffset(1);
+            return Result.ok(scrollResult);
         }
         //4. 解析数据，blogId、minTime（时间戳）、offset，这里指定创建的list大小，可以略微提高效率，因为我们知道这个list就得是这么大
         ArrayList<Long> ids = new ArrayList<>(typeTuples.size());
@@ -321,19 +363,57 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
         //5. 根据id查询blog
         List<Blog> blogs = query().in("id", ids).last("ORDER BY FIELD(id," + idsStr + ")").list();
-
-        for (Blog blog : blogs) {
-            //5.1 查询发布该blog的用户信息
-            queryBlogUser(blog);
-            //5.2 查询当前用户是否给该blog点过赞
-            isBlogLiked(blog);
+        if (blogs.isEmpty()) {
+            ScrollResult empty = new ScrollResult();
+            empty.setList(Collections.emptyList());
+            empty.setOffset(os);
+            empty.setMinTime(minTime);
+            return Result.ok(empty);
         }
+
+        enrichBlogs(blogs, userId);
         //6. 封装结果并返回
         ScrollResult scrollResult = new ScrollResult();
         scrollResult.setList(blogs);
         scrollResult.setOffset(os);
         scrollResult.setMinTime(minTime);
         return Result.ok(scrollResult);
+    }
+
+    private void enrichBlogs(List<Blog> blogs, Long currentUserId) {
+        Set<Long> userIds = blogs.stream().map(Blog::getUserId).collect(Collectors.toSet());
+        Map<Long, User> userMap = userService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, UserInfo> userInfoMap = userInfoService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(UserInfo::getUserId, u -> u, (a, b) -> a));
+
+        List<Object> likedFlags = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Blog blog : blogs) {
+                String likedKey = BLOG_LIKED_KEY + blog.getId();
+                connection.zScore(likedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        currentUserId.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+        if (likedFlags == null) {
+            likedFlags = Collections.emptyList();
+        }
+
+        for (int i = 0; i < blogs.size(); i++) {
+            Blog blog = blogs.get(i);
+            User u = userMap.get(blog.getUserId());
+            if (u != null) {
+                blog.setName(u.getNickName());
+            }
+            UserInfo info = userInfoMap.get(blog.getUserId());
+            if (info != null) {
+                blog.setIcon(info.getIcon());
+            }
+            Object flag = i < likedFlags.size() ? likedFlags.get(i) : null;
+            blog.setIsLike(flag != null);
+        }
     }
 
     @Override

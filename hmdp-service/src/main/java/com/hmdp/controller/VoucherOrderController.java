@@ -21,13 +21,26 @@ public class VoucherOrderController {
     private IVoucherOrderService voucherOrderService;
 
     @PostMapping("seckill/{id}")
-    public Result seckillVoucher(@PathVariable("id") Long voucherId) {
-        return voucherOrderService.seckillVoucher(voucherId);
+    public Result seckillVoucher(@PathVariable("id") Long voucherId,
+                                 @RequestParam(value = "reqId", required = false) String requestId,
+                                 @RequestParam(value = "count", required = false, defaultValue = "1") Integer count) {
+        return voucherOrderService.seckillVoucher(voucherId, requestId, count);
+    }
+
+    @GetMapping("req/{id}")
+    public Result generateRequestId(@PathVariable("id") Long voucherId,
+                                    @RequestParam(value = "count", required = false, defaultValue = "1") Integer count) {
+        return voucherOrderService.generateRequestId(voucherId, count);
     }
 
     @GetMapping("/my")
     public Result myOrders(@RequestParam(value = "current", defaultValue = "1") Integer current,
                            @RequestParam(value = "size", defaultValue = "10") Integer size) {
         return voucherOrderService.queryMyOrders(current, size);
+    }
+
+    @GetMapping("/status")
+    public Result queryStatus(@RequestParam("reqId") String requestId) {
+        return voucherOrderService.queryStatus(requestId);
     }
 }

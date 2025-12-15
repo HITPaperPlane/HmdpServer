@@ -80,9 +80,32 @@
             <div class="voucher-window muted" v-if="v.beginTime">
               秒杀窗口：{{ v.beginTime }} ~ {{ v.endTime }}
             </div>
+            <div class="voucher-rule muted">
+              <van-tag size="mini" plain type="primary">{{ renderLimitTag(v) }}</van-tag>
+              <span v-if="v.userLimit && v.limitType === 3" class="inline-note">累计限购 {{ v.userLimit }} 件</span>
+            </div>
 
             <div class="voucher-actions">
-              <van-button v-if="v.beginTime" size="small" type="danger" @click="seckill(v.id)">立即秒杀</van-button>
+              <div v-if="v.limitType !== 1" class="qty-box">
+                <span class="muted">本次抢购数量</span>
+                <van-stepper
+                    v-model="purchaseCount[v.id]"
+                    min="1"
+                    integer
+                    :max="maxCount(v)"
+                    @change="onCountChange(v.id)"
+                />
+              </div>
+              <van-button
+                  v-if="v.beginTime"
+                  size="small"
+                  type="danger"
+                  :loading="getSeckillState(v.id).status === 'PENDING'"
+                  :disabled="isSeckillDisabled(v.id)"
+                  @click="seckill(v.id)"
+              >
+                {{ renderSeckillText(v.id) }}
+              </van-button>
               <van-button v-else size="small" plain type="primary" disabled>普通券仅展示</van-button>
             </div>
           </div>
@@ -161,7 +184,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/http';
 import { resolveImg, splitImages } from '../utils/media';
@@ -178,6 +201,8 @@ const images = ref([]);
 const vouchers = ref([]);
 const types = ref([]);
 const log = ref('准备就绪');
+const seckillStates = reactive({});
+const purchaseCount = reactive({});
 const loading = reactive({ vouchers: false });
 const blogs = reactive({ list: [], page: 1, loading: false, finished: false });
 
@@ -240,6 +265,11 @@ async function loadVouchers() {
   try {
     const list = await request(`/voucher/list/${shop.id}`);
     vouchers.value = Array.isArray(list) ? list : [];
+    vouchers.value.forEach(v => {
+      if (!purchaseCount[v.id]) {
+        purchaseCount[v.id] = 1;
+      }
+    });
     log.value = '券列表已刷新';
   } catch (e) {
     log.value = e?.message || '加载失败';
@@ -248,17 +278,164 @@ async function loadVouchers() {
   }
 }
 
+function getSeckillState(voucherId) {
+  if (!seckillStates[voucherId]) {
+    seckillStates[voucherId] = { status: 'IDLE', reqId: '', startedAt: 0, timer: null, reason: '' };
+  }
+  return seckillStates[voucherId];
+}
+
+function renderSeckillText(voucherId) {
+  const state = getSeckillState(voucherId);
+  switch (state.status) {
+    case 'PENDING':
+      return '正在排队...';
+    case 'SUCCESS':
+      return '抢购成功';
+    case 'FAILED':
+      if (state.reason === 'LIMIT') return '限购已满';
+      if (state.reason === 'STOCK') return '库存不足';
+      return '抢购失败';
+    case 'TIMEOUT':
+      return '超时，点此重试';
+    default:
+      return '立即秒杀';
+  }
+}
+
+function renderLimitTag(voucher) {
+  const type = voucher.limitType || 1;
+  if (type === 1) return '一人一单';
+  if (type === 3) return '累计限购';
+  return '一人多单';
+}
+
+function maxCount(voucher) {
+  if (voucher.limitType === 3 && voucher.userLimit) {
+    return Number(voucher.userLimit) || 1;
+  }
+  return Math.max(1, voucher.stock || 10);
+}
+
+function isSeckillDisabled(voucherId) {
+  const state = getSeckillState(voucherId);
+  if (state.status === 'PENDING') return true;
+  if (state.status === 'FAILED' && state.reason === 'STOCK') return true;
+  return false;
+}
+
+function resetSeckillState(state, keepReq = false) {
+  if (state.timer) clearTimeout(state.timer);
+  state.timer = null;
+  state.startedAt = 0;
+  state.reason = '';
+  state.status = 'IDLE';
+  if (!keepReq) state.reqId = '';
+}
+
+function currentCount(voucherId) {
+  const val = purchaseCount[voucherId];
+  if (!val || val < 1) {
+    purchaseCount[voucherId] = 1;
+    return 1;
+  }
+  return val;
+}
+
+function onCountChange(voucherId) {
+  purchaseCount[voucherId] = currentCount(voucherId);
+  // 切换数量后复用同一请求ID意义不大，重置状态但保留手动申请的 reqId
+  resetSeckillState(getSeckillState(voucherId), true);
+}
+
+function nextReqId(voucherId) {
+  return `REQ_${voucherId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
 async function seckill(voucherId) {
   if (!session.token) {
     log.value = '请先登录再秒杀';
     router.push('/login');
     return;
   }
+  const state = getSeckillState(voucherId);
+  if (state.status === 'PENDING') {
+    return;
+  }
+  const voucher = vouchers.value.find(v => v.id === voucherId) || {};
+  const limitType = voucher.limitType || 1;
+  const buyCount = currentCount(voucherId);
+  if (limitType === 3 && voucher.userLimit && buyCount > voucher.userLimit) {
+    log.value = `最多可抢 ${voucher.userLimit} 件`;
+    return;
+  }
+  // 非一人一单需要预先申请 reqId
+  if (limitType !== 1 && !state.reqId) {
+    try {
+      state.reqId = await request(`/voucher-order/req/${voucherId}?count=${buyCount}`, { token: session.token });
+    } catch (e) {
+      log.value = e?.message || '获取请求号失败';
+      return;
+    }
+  }
+  if (limitType === 1 && !state.reqId) {
+    // 后端会按规则生成，这里仅用于显示状态
+    state.reqId = nextReqId(voucherId);
+  }
   try {
-    const orderId = await request(`/voucher-order/seckill/${voucherId}`, { method: 'POST', token: session.token });
-    log.value = `已提交秒杀，订单ID：${orderId}`;
+    const respId = await request(`/voucher-order/seckill/${voucherId}?reqId=${encodeURIComponent(state.reqId)}&count=${buyCount}`, { method: 'POST', token: session.token });
+    if (respId) {
+      state.reqId = respId;
+    }
+    state.status = 'PENDING';
+    state.startedAt = Date.now();
+    log.value = `已提交秒杀，ReqId=${state.reqId}，数量=${buyCount}`;
+    pollStatus(voucherId);
   } catch (e) {
-    log.value = e?.message || '秒杀失败';
+    const msg = e?.message || '秒杀失败';
+    state.status = 'FAILED';
+    state.reason = msg.includes('库存') ? 'STOCK' : (msg.includes('限购') ? 'LIMIT' : 'ERROR');
+    log.value = msg;
+  }
+}
+
+async function pollStatus(voucherId) {
+  const state = getSeckillState(voucherId);
+  if (!state.reqId) return;
+  try {
+    const resp = await request(`/voucher-order/status?reqId=${encodeURIComponent(state.reqId)}`, { token: session.token });
+    const status = (resp?.status || '').toUpperCase();
+    if (status === 'SUCCESS') {
+      state.status = 'SUCCESS';
+      log.value = '抢购成功';
+      state.timer = setTimeout(() => resetSeckillState(state), 1500);
+      return;
+    }
+    if (status === 'FAILED') {
+      state.status = 'FAILED';
+      state.reason = resp?.reason || '';
+      if (!state.reason && resp?.voucherId && resp?.orderId == null) {
+        state.reason = 'STOCK';
+      }
+      log.value = resp?.reason ? `失败：${resp.reason}` : '秒杀失败';
+      state.timer = setTimeout(() => resetSeckillState(state), 1500);
+      return;
+    }
+    const elapsed = Date.now() - state.startedAt;
+    if (status === 'NOT_FOUND' && elapsed > 5000) {
+      state.status = 'TIMEOUT';
+      log.value = '请求超时，可重试（会复用同一ID）';
+      return;
+    }
+    state.timer = setTimeout(() => pollStatus(voucherId), 1000);
+  } catch (e) {
+    const elapsed = Date.now() - state.startedAt;
+    if (elapsed > 5000) {
+      state.status = 'TIMEOUT';
+      log.value = '请求超时，可重试';
+      return;
+    }
+    state.timer = setTimeout(() => pollStatus(voucherId), 1200);
   }
 }
 
@@ -291,6 +468,12 @@ onMounted(async () => {
   await loadShop();
   await loadVouchers();
   await loadBlogs();
+});
+
+onBeforeUnmount(() => {
+  Object.values(seckillStates).forEach((s) => {
+    if (s.timer) clearTimeout(s.timer);
+  });
 });
 </script>
 
@@ -481,6 +664,9 @@ onMounted(async () => {
   margin-top: 8px;
   line-height: 1.6;
 }
+.voucher-rule .inline-note {
+  margin-left: 8px;
+}
 
 .voucher-window {
   margin-top: 8px;
@@ -490,6 +676,15 @@ onMounted(async () => {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.qty-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
 }
 
 .quick-actions {

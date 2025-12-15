@@ -6,8 +6,8 @@
         <div class="hero-sub">富文本（HTML）排版 · 图片上传 · 关联店铺 · 推送关注流</div>
       </div>
       <div class="hero-actions">
-        <van-button size="small" type="primary" @click="openCompose">发布笔记</van-button>
         <van-button size="small" plain type="default" @click="refreshMine">刷新我的笔记</van-button>
+        <van-tag plain type="primary">发布入口已迁移至用户端</van-tag>
       </div>
     </section>
 
@@ -58,7 +58,7 @@
       <div class="log">{{ log }}</div>
     </section>
 
-    <van-popup v-model:show="compose.show" position="right" class="compose-popup">
+    <van-popup v-model:show="compose.show" position="right" class="compose-popup" v-if="false">
       <div class="compose-head">
         <div>
           <div class="compose-title">发布笔记</div>

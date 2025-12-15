@@ -1,4 +1,4 @@
-package com.hmdp.relay.config;
+package com.hmdp.feed.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -9,40 +9,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQTopicConfig {
-    public static final String QUEUE = "seckillQueue";
-    public static final String EXCHANGE = "seckillExchange";
-    public static final String ROUTINGKEY = "seckill.message";
-    public static final String CANAL_ERROR_QUEUE = "canal.error.queue";
-    public static final String CANAL_ERROR_ROUTING_KEY = "canal.error";
-
     public static final String FEED_EXCHANGE = "feedExchange";
     public static final String FEED_PUBLISH_QUEUE = "feed.publish.queue";
     public static final String FEED_PUBLISH_ROUTING_KEY = "feed.publish";
     public static final String FEED_BATCH_QUEUE = "feed.batch.queue";
     public static final String FEED_BATCH_ROUTING_KEY = "feed.batch";
-
-    @Bean
-    public Queue queue(){
-        return new Queue(QUEUE, true);
-    }
-    @Bean
-    public TopicExchange topicExchange(){
-        return new TopicExchange(EXCHANGE, true, false);
-    }
-    @Bean
-    public Binding binding(){
-        return BindingBuilder.bind(queue()).to(topicExchange()).with(ROUTINGKEY);
-    }
-
-    @Bean
-    public Queue canalErrorQueue() {
-        return new Queue(CANAL_ERROR_QUEUE, true);
-    }
-
-    @Bean
-    public Binding canalErrorBinding() {
-        return BindingBuilder.bind(canalErrorQueue()).to(topicExchange()).with(CANAL_ERROR_ROUTING_KEY);
-    }
 
     @Bean
     public TopicExchange feedExchange() {

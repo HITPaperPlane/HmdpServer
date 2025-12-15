@@ -24,8 +24,15 @@ public class RedisConstants {
     public static final String SECKILL_OUTBOX_KEY = "seckill:{seckill}:outbox";
     public static final String SECKILL_LIMIT_SET_KEY = "seckill:{seckill}:order:";
     public static final String SECKILL_USER_COUNT_KEY = "seckill:{seckill}:usercount:";
+    public static final String SECKILL_REQUEST_KEY = "seckill:{seckill}:req:";
+    public static final String SECKILL_STATUS_KEY = "seckill:{seckill}:status:";
+    public static final String SECKILL_REQ_TOKEN_KEY = "seckill:{seckill}:token:";
+    public static final long SECKILL_REQ_TOKEN_TTL_MINUTES = 10L;
+
     public static final String BLOG_LIKED_KEY = "blog:liked:";
     public static final String FEED_KEY = "feed:";
+    public static final String FEED_OUTBOX_KEY = "feed:{feed}:outbox";
+    public static final String FEED_SPLIT_LOCK_KEY = "feed:{feed}:split:";
     public static final String SHOP_GEO_KEY = "shop:geo:";
     public static final String USER_SIGN_KEY = "sign:";
     public static final String SENDCODE_SENDTIME_KEY ="sms:sendtime:";

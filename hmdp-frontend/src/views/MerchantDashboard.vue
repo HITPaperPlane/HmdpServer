@@ -12,6 +12,24 @@
       </div>
     </section>
 
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <div class="title">商户资料</div>
+          <div class="muted">头像、昵称、简介请在个人中心维护，所有端统一展示</div>
+        </div>
+        <van-button size="small" plain type="primary" @click="go('/profile')">完善资料</van-button>
+      </div>
+      <div class="merchant-profile">
+        <van-image round width="64px" height="64px" :src="merchantAvatar" />
+        <div class="meta">
+          <div class="name">{{ session.profile.nickName || '未设置昵称' }}</div>
+          <div class="muted">ID {{ session.profile.id || '-' }}</div>
+          <div class="muted van-ellipsis">{{ session.profile.introduce || '暂无简介' }}</div>
+        </div>
+      </div>
+    </section>
+
     <section class="grid-3">
       <div class="mini-card c1">
         <div class="mini-title">开店/编辑</div>
@@ -72,15 +90,19 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { request } from '../api/http';
-import { splitImages } from '../utils/media';
+import { resolveImg, splitImages } from '../utils/media';
+import { useSessionStore } from '../stores/session';
+import defaultAvatar from '../assets/default-avatar.svg';
 
 const router = useRouter();
+const session = useSessionStore();
 
 const types = ref([]);
 const search = reactive({ keyword: '', list: [], page: 1, loading: false, finished: false });
+const merchantAvatar = computed(() => resolveImg(session.profile.icon) || defaultAvatar);
 
 function go(path) {
   router.push(path);
@@ -221,6 +243,16 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+.merchant-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 10px;
+}
+.merchant-profile .meta .name {
+  font-weight: 900;
+  color: #222;
 }
 
 .shop-grid {

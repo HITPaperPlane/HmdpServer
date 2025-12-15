@@ -1,13 +1,20 @@
 server:
-  port: 8083
+  port: 8085
 spring:
   application:
-    name: hmdp-order
+    name: feed-service
   datasource:
     driver-class-name: com.mysql.jdbc.Driver
     url: jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC
     username: root
     password: '#gmrGMR110202'
+  redis:
+    cluster:
+      nodes:
+        - 123.56.100.212:6379
+        - 39.97.193.168:6379
+        - 115.190.193.236:6379
+    password: 123456
   rabbitmq:
     host: 115.190.193.236
     username: paperplane
@@ -16,27 +23,16 @@ spring:
     port: 5672
     listener:
       simple:
-        concurrency: 5
-        max-concurrency: 10
-        prefetch: 50
-        auto-startup: true
-        default-requeue-rejected: false
         acknowledge-mode: manual
+        concurrency: 4
+        max-concurrency: 10
+        prefetch: 200
     template:
       mandatory: true
-  redis:
-    cluster:
-      nodes:
-        - 123.56.100.212:6379
-        - 39.97.193.168:6379
-        - 115.190.193.236:6379
-    password: 123456
-  jackson:
-    default-property-inclusion: non_null
 mybatis-plus:
   mapper-locations: classpath:/mapper/*.xml
-  type-aliases-package: com.hmdp.order.entity
+  type-aliases-package: com.hmdp.feed.entity
 logging:
   level:
     root: info
-    com.hmdp.order: debug
+    com.hmdp.feed: debug

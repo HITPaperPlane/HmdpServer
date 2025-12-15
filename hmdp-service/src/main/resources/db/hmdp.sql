@@ -1265,8 +1265,12 @@ INSERT INTO `tb_voucher` VALUES (1, 1, '50元代金券', '周一至周日均可�
 DROP TABLE IF EXISTS `tb_voucher_order`;
 CREATE TABLE `tb_voucher_order`  (
   `id` bigint(20) NOT NULL COMMENT '主键',
+  `request_id` varchar(128) NOT NULL DEFAULT '' COMMENT '入口请求ID，用于幂等',
   `user_id` bigint(20) UNSIGNED NOT NULL COMMENT '下单的用户id',
   `voucher_id` bigint(20) UNSIGNED NOT NULL COMMENT '购买的代金券id',
+  `count` int NOT NULL DEFAULT 1 COMMENT '本次下单的数量',
+  `limit_type` tinyint(1) DEFAULT 1 COMMENT '限购类型：1一人一单 2一人多单 3累计限购',
+  `user_limit` int DEFAULT NULL COMMENT '累计限购阈值',
   `pay_type` tinyint(1) UNSIGNED NOT NULL DEFAULT 1 COMMENT '支付方式 1：余额支付；2：支付宝；3：微信',
   `status` tinyint(1) UNSIGNED NOT NULL DEFAULT 1 COMMENT '订单状态，1：未支付；2：已支付；3：已核销；4：已取消；5：退款中；6：已退款',
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
@@ -1274,8 +1278,21 @@ CREATE TABLE `tb_voucher_order`  (
   `use_time` timestamp NULL DEFAULT NULL COMMENT '核销时间',
   `refund_time` timestamp NULL DEFAULT NULL COMMENT '退款时间',
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_request` (`request_id`),
+  KEY `idx_user_voucher` (`user_id`, `voucher_id`)
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
+
+-- ----------------------------
+-- Table structure for tb_user_quota
+-- ----------------------------
+DROP TABLE IF EXISTS `tb_user_quota`;
+CREATE TABLE `tb_user_quota` (
+  `user_id` bigint(20) NOT NULL,
+  `voucher_id` bigint(20) NOT NULL,
+  `owned_count` int DEFAULT 0,
+  PRIMARY KEY (`user_id`, `voucher_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Records of tb_voucher_order

@@ -6,14 +6,20 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.order.dto.OrderMessage;
 import com.hmdp.order.entity.SeckillVoucher;
 import com.hmdp.order.entity.VoucherOrder;
+import com.hmdp.order.mapper.UserQuotaMapper;
 import com.hmdp.order.mapper.VoucherOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -21,55 +27,81 @@ import java.time.LocalDateTime;
 public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder> {
 
     private final com.hmdp.order.mapper.SeckillVoucherMapper seckillVoucherMapper;
+    private final UserQuotaMapper userQuotaMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final long STATUS_TTL_MINUTES = 30;
+    private static final String STATUS_KEY_PREFIX = "seckill:{seckill}:status:";
 
     @Transactional
     public void process(OrderMessage message) {
+        String requestId = cn.hutool.core.util.StrUtil.isNotBlank(message.getRequestId())
+                ? message.getRequestId()
+                : String.valueOf(message.getOrderId());
+        message.setRequestId(requestId);
+        int buyCount = message.getCount() == null || message.getCount() < 1 ? 1 : message.getCount();
+        int limitType = message.getLimitType() == null ? 1 : message.getLimitType();
+        int userLimit = message.getUserLimit() == null ? Integer.MAX_VALUE : message.getUserLimit();
         // 幂等：若 request_id 已存在则直接返回
         VoucherOrder exists = this.getBaseMapper().selectOne(
-                new QueryWrapper<VoucherOrder>().eq("request_id", message.getOrderId().toString()));
+                new QueryWrapper<VoucherOrder>().eq("request_id", requestId));
         if (exists != null) {
             log.info("request {} already processed", message.getOrderId());
+            writeStatus(requestId, "SUCCESS", exists.getId(), exists.getVoucherId(), exists.getUserId(), null, exists.getCount());
             return;
         }
 
         // 业务限购校验
-        if (message.getLimitType() != null) {
-            if (message.getLimitType() == 1) {
-                Integer count = this.count(new QueryWrapper<VoucherOrder>()
-                        .eq("user_id", message.getUserId())
-                        .eq("voucher_id", message.getVoucherId()));
-                if (count != null && count > 0) {
-                    log.warn("user {} already bought voucher {}", message.getUserId(), message.getVoucherId());
-                    return;
-                }
-            } else if (message.getLimitType() == 3) {
-                Integer count = this.count(new QueryWrapper<VoucherOrder>()
-                        .eq("user_id", message.getUserId())
-                        .eq("voucher_id", message.getVoucherId()));
-                if (count != null && count >= message.getUserLimit()) {
-                    log.warn("user {} reach limit {} for voucher {}", message.getUserId(), message.getUserLimit(), message.getVoucherId());
-                    return;
-                }
+        boolean quotaTouched = false;
+        if (limitType == 1) {
+            if (buyCount > 1) {
+                writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "LIMIT", buyCount);
+                return;
             }
+            Integer cnt = this.count(new QueryWrapper<VoucherOrder>()
+                    .eq("user_id", message.getUserId())
+                    .eq("voucher_id", message.getVoucherId()));
+            if (cnt != null && cnt > 0) {
+                log.warn("user {} already bought voucher {}", message.getUserId(), message.getVoucherId());
+                writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "LIMIT", buyCount);
+                return;
+            }
+        } else if (limitType == 3) {
+            if (userLimit <= 0) {
+                writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "LIMIT", buyCount);
+                return;
+            }
+            int affected = userQuotaMapper.upsertQuota(message.getUserId(), message.getVoucherId(), buyCount, userLimit);
+            if (affected == 0) {
+                log.warn("user {} exceeds quota for voucher {}", message.getUserId(), message.getVoucherId());
+                writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "LIMIT", buyCount);
+                return;
+            }
+            quotaTouched = true;
         }
 
         // 扣减库存（乐观锁）
         int updated = seckillVoucherMapper.update(null, new UpdateWrapper<SeckillVoucher>()
-                .setSql("stock = stock - 1")
+                .setSql("stock = stock - " + buyCount)
                 .eq("voucher_id", message.getVoucherId())
-                .gt("stock", 0));
+                .ge("stock", buyCount));
         if (updated <= 0) {
             log.warn("stock not enough for voucher {}", message.getVoucherId());
+            if (quotaTouched) {
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            }
+            writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "STOCK", buyCount);
             return;
         }
 
         // 创建订单
         VoucherOrder order = new VoucherOrder()
                 .setId(message.getOrderId())
-                .setRequestId(message.getOrderId().toString())
+                .setRequestId(requestId)
                 .setUserId(message.getUserId())
                 .setVoucherId(message.getVoucherId())
-                .setLimitType(message.getLimitType())
+                .setCount(buyCount)
+                .setLimitType(limitType)
                 .setUserLimit(message.getUserLimit())
                 .setPayType(1)
                 .setStatus(1)
@@ -78,6 +110,36 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
             this.save(order);
         } catch (DuplicateKeyException e) {
             log.info("request {} duplicate, ignore", message.getOrderId());
+            writeStatus(requestId, "SUCCESS", message.getOrderId(), message.getVoucherId(), message.getUserId(), null, buyCount);
+            return;
         }
+        writeStatus(requestId, "SUCCESS", order.getId(), order.getVoucherId(), order.getUserId(), null, buyCount);
+    }
+
+    private void writeStatus(String requestId, String status, Long orderId, Long voucherId, Long userId, String reason, Integer count) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("status", status);
+        if (orderId != null) {
+            payload.put("orderId", orderId);
+        }
+        if (voucherId != null) {
+            payload.put("voucherId", voucherId);
+        }
+        if (userId != null) {
+            payload.put("userId", userId);
+        }
+        if (cn.hutool.core.util.StrUtil.isNotBlank(reason)) {
+            payload.put("reason", reason);
+        }
+        payload.put("timestamp", System.currentTimeMillis());
+        if (count != null) {
+            payload.put("count", count);
+        }
+        stringRedisTemplate.opsForValue().set(
+                STATUS_KEY_PREFIX + requestId,
+                cn.hutool.json.JSONUtil.toJsonStr(payload),
+                STATUS_TTL_MINUTES,
+                TimeUnit.MINUTES
+        );
     }
 }

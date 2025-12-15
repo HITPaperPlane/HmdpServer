@@ -18,6 +18,7 @@ public class VoucherOrder {
     private String requestId;
     private Long userId;
     private Long voucherId;
+    private Integer count;
     private Integer limitType;
     private Integer userLimit;
     private Integer payType;

@@ -25,7 +25,9 @@ public class CanalSubscriber {
 
     private final CanalProperties canalProperties;
     private final StringRedisTemplate redisTemplate;
+    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    private static final int MAX_RETRY_TIMES = 3;
 
     @PostConstruct
     public void start() {
@@ -50,8 +52,13 @@ public class CanalSubscriber {
                         TimeUnit.SECONDS.sleep(1);
                         continue;
                     }
-                    handleEntries(message.getEntries());
-                    connector.ack(batchId);
+                    boolean success = processBatch(message.getEntries());
+                    if (success) {
+                        connector.ack(batchId);
+                    } else {
+                        connector.rollback();
+                        TimeUnit.SECONDS.sleep(5);
+                    }
                 }
             } catch (Exception e) {
                 log.error("canal consume failed, retrying", e);
@@ -66,38 +73,84 @@ public class CanalSubscriber {
         }
     }
 
-    private void handleEntries(List<CanalEntry.Entry> entries) {
+    private boolean processBatch(List<CanalEntry.Entry> entries) {
         for (CanalEntry.Entry entry : entries) {
             if (entry.getEntryType() != CanalEntry.EntryType.ROWDATA) {
                 continue;
             }
+            boolean processed = handleEntryWithRetry(entry);
+            if (!processed) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean handleEntryWithRetry(CanalEntry.Entry entry) {
+        int retry = 0;
+        while (retry < MAX_RETRY_TIMES) {
             try {
-                CanalEntry.RowChange rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
-                String tableName = entry.getHeader().getTableName();
-                for (CanalEntry.RowData rowData : rowChange.getRowDatasList()) {
-                    String id = extractId(rowData.getAfterColumnsList(), rowData.getBeforeColumnsList());
-                    if (id == null) {
-                        continue;
-                    }
-                    if ("tb_shop".equalsIgnoreCase(tableName)) {
-                        redisTemplate.delete(RedisKeys.CACHE_SHOP_KEY + id);
-                    } else if ("tb_blog".equalsIgnoreCase(tableName)) {
-                        redisTemplate.delete(RedisKeys.CACHE_BLOG_KEY + id);
-                    }
-                }
+                parseAndInvalidateCache(entry);
+                return true;
             } catch (Exception e) {
-                log.error("parse canal entry failed", e);
+                retry++;
+                log.warn("Process canal entry failed, retry {}/{}", retry, MAX_RETRY_TIMES, e);
+                try {
+                    TimeUnit.MILLISECONDS.sleep(500);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+        return sendToErrorQueue(entry);
+    }
+
+    private void parseAndInvalidateCache(CanalEntry.Entry entry) throws Exception {
+        CanalEntry.RowChange rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
+        String tableName = entry.getHeader().getTableName();
+        CanalEntry.EventType eventType = rowChange.getEventType();
+        if (eventType != CanalEntry.EventType.INSERT && eventType != CanalEntry.EventType.UPDATE && eventType != CanalEntry.EventType.DELETE) {
+            return;
+        }
+        for (CanalEntry.RowData rowData : rowChange.getRowDatasList()) {
+            String id = extractId(rowData);
+            if (id == null) {
+                continue;
+            }
+            if ("tb_shop".equalsIgnoreCase(tableName)) {
+                redisTemplate.delete(RedisKeys.CACHE_SHOP_KEY + id);
+            } else if ("tb_blog".equalsIgnoreCase(tableName)) {
+                redisTemplate.delete(RedisKeys.CACHE_BLOG_KEY + id);
             }
         }
     }
 
-    private String extractId(List<CanalEntry.Column> after, List<CanalEntry.Column> before) {
-        for (CanalEntry.Column c : after) {
-            if (c.getIsKey()) {
-                return c.getValue();
-            }
+    private boolean sendToErrorQueue(CanalEntry.Entry entry) {
+        try {
+            java.util.Map<String, Object> errorMsg = new java.util.HashMap<>();
+            errorMsg.put("tableName", entry.getHeader().getTableName());
+            errorMsg.put("entryType", entry.getEntryType().name());
+            errorMsg.put("logfileName", entry.getHeader().getLogfileName());
+            errorMsg.put("logfileOffset", entry.getHeader().getLogfileOffset());
+            errorMsg.put("time", System.currentTimeMillis());
+            rabbitTemplate.convertAndSend(
+                    com.hmdp.relay.config.RabbitMQTopicConfig.EXCHANGE,
+                    com.hmdp.relay.config.RabbitMQTopicConfig.CANAL_ERROR_ROUTING_KEY,
+                    errorMsg
+            );
+            log.error("Message processing failed after retries. Sent to DLQ: {}", errorMsg);
+            return true;
+        } catch (Exception e) {
+            log.error("FATAL: Failed to send message to DLQ!", e);
+            return false;
         }
-        for (CanalEntry.Column c : before) {
+    }
+
+    private String extractId(CanalEntry.RowData rowData) {
+        List<CanalEntry.Column> columns = rowData.getAfterColumnsList();
+        if (columns == null || columns.isEmpty()) {
+            columns = rowData.getBeforeColumnsList();
+        }
+        for (CanalEntry.Column c : columns) {
             if (c.getIsKey()) {
                 return c.getValue();
             }

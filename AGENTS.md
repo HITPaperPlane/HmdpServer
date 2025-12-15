@@ -32,3 +32,11 @@
 - 主服务：tail -f /tmp/hmdp-service.log
 - 订单消费：tail -f /tmp/order-service.log（如果此前用 nohup 这样启动）
 - relay：tail -f /tmp/relay-service.log
+
+我有三个能用的服务器 39.97.193.168，root用户的密码是#gmrGMR110202， 115.190.193.236，root用户的密码是#gmrGMR110202， 123.56.100.212，root用户的密码是#gmrGMR110202
+
+## Runtime Infra (confirmed in application.yaml)
+- MySQL: `jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC`, user `root`, password `#gmrGMR110202`.
+- Redis cluster: nodes `123.56.100.212:6379`, `39.97.193.168:6379`, `115.190.193.236:6379`, password `123456`.
+- RabbitMQ: host `115.190.193.236`, port `5672`, vhost `/`, user `paperplane`, password `123456` (hmdp-service publisher, order-service consumer, relay publisher).
+- Canal for cache eviction (relay-service): host `123.56.100.212`, port `11111`, destination `example`, subscribes `hmdp.tb_shop` and `hmdp.tb_blog`.

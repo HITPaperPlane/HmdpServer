@@ -48,6 +48,11 @@ public class VoucherOrder implements Serializable {
     private Long voucherId;
 
     /**
+     * 本次下单的数量
+     */
+    private Integer count;
+
+    /**
      * 限购类型
      */
     private Integer limitType;

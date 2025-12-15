@@ -80,6 +80,25 @@ tail -f logs/relay-service.log
 kill $(lsof -ti:8084)
 ```
 
+### 4) feed-service（8085，异步推送关注流收件箱）
+构建：
+```bash
+cd feed-service
+mvn clean package -DskipTests
+```
+启动：
+```bash
+nohup java -jar target/feed-service-0.0.1-SNAPSHOT.jar --server.port=8085 > ../logs/feed-service.log 2>&1 & echo $!
+```
+查看日志：
+```bash
+tail -f logs/feed-service.log
+```
+停止：
+```bash
+kill $(lsof -ti:8085)
+```
+
 ### 4) hmdp-frontend（Web）
 开发启动（可用于服务器上临时联调，日志落 `logs/`）：
 ```bash
@@ -143,6 +162,8 @@ sudo nginx -s reload
   - 数据源同上；RabbitMQ 同上；消费队列 `seckillQueue`，QoS=50，幂等基于 `request_id` 唯一键与业务校验。
 - `relay-service/src/main/resources/application.yaml`
   - Redis 集群+密码；RabbitMQ 同上；Publisher confirm 已启用。
+- `feed-service/src/main/resources/application.yaml`
+  - 监听 `feed.publish.queue` 进行大 V 批量扇出拆分，`feed.batch.queue` 批量写粉丝收件箱，Redis 集群与其他服务一致。
 
 ## 运行时流程（秒杀）
 1) 管理员/商家预热：`VoucherService.addSeckillVoucher` 将库存、限购策略写入 DB 与 Redis。

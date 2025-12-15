@@ -1,9 +1,11 @@
-package com.hmdp.order.dto;
+package com.hmdp.dto;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 @Data
-public class OrderMessage {
+@Accessors(chain = true)
+public class SeckillMessage {
     private Long orderId;
     private String requestId;
     private Long voucherId;
