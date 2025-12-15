@@ -57,6 +57,24 @@ public class UploadController {
         }
     }
 
+    @PostMapping("shop")
+    public Result uploadShopImage(@RequestParam("file") MultipartFile image) {
+        try {
+            String originalFilename = image.getOriginalFilename();
+            String fileName = createNewFileName(originalFilename, "shops");
+            File target = new File(SystemConstants.IMAGE_UPLOAD_DIR, fileName);
+            File parent = target.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            image.transferTo(target);
+            log.debug("店铺图片上传成功，{}", fileName);
+            return Result.ok("/" + fileName);
+        } catch (IOException e) {
+            throw new RuntimeException("店铺图片上传失败", e);
+        }
+    }
+
     @GetMapping("/blog/delete")
     public Result deleteBlogImg(@RequestParam("name") String filename) {
         String relative = normalizeRelativePath(filename);

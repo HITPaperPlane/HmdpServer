@@ -50,6 +50,12 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         String key = "follows:" + userId;
         //判断是否关注
         if (isFellow) {
+            Integer exists = query().eq("user_id", userId).eq("follow_user_id", followUserId).count();
+            if (exists != null && exists > 0) {
+                // 幂等：已关注则只保证 Redis 中存在
+                stringRedisTemplate.opsForSet().add(key, followUserId.toString());
+                return Result.ok();
+            }
             //关注，则将信息保存到数据库
             Follow follow = new Follow();
             follow.setUserId(userId);
@@ -72,10 +78,13 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 stringRedisTemplate.opsForSet().add(key, followUserId.toString());
             }
         } else {
-            //取关，则将数据从数据库中移除
-//            delete from tb_follow where user_id = ?  and follow_user_id = ?
-            boolean successed=remove(new QueryWrapper<Follow>().eq("user_id", userId)
-                    .eq("follow_user_id",followUserId));
+            //取关：只删除一条，保持幂等 & 计数准确（避免历史重复数据导致一次删除多条）
+            QueryWrapper<Follow> delWrapper = new QueryWrapper<Follow>()
+                    .eq("user_id", userId)
+                    .eq("follow_user_id", followUserId)
+                    .last("limit 1");
+            int deleted = getBaseMapper().delete(delWrapper);
+            boolean successed = deleted > 0;
             if (successed) {
                 ensureUserInfoExists(userId);
                 ensureUserInfoExists(followUserId);
@@ -89,9 +98,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                         .update();
             }
             //则将数据也从Redis中移除
-            if (successed){
-                stringRedisTemplate.opsForSet().remove(key,followUserId.toString());
-            }
+            stringRedisTemplate.opsForSet().remove(key, followUserId.toString());
         }
         return Result.ok();
     }
@@ -124,6 +131,12 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         //之后根据ids去查询共同关注的用户，封装成UserDto再返回
         List<UserDTO> userDTOS = userService.listByIds(ids).stream().map(user ->
                 BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+        java.util.Map<Long, String> iconMap = userInfoService.listByIds(ids).stream()
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toMap(UserInfo::getUserId, ui -> java.util.Objects.toString(ui.getIcon(), ""), (a, b) -> a));
+        for (UserDTO dto : userDTOS) {
+            dto.setIcon(iconMap.get(dto.getId()));
+        }
         return Result.ok(userDTOS);
     }
 

@@ -117,6 +117,10 @@ public class UserController {
             return Result.ok();
         }
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+        UserInfo info = userInfoService.getById(userId);
+        if (info != null) {
+            userDTO.setIcon(info.getIcon());
+        }
         // 返回
         return Result.ok(userDTO);
     }

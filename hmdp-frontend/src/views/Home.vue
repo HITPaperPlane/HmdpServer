@@ -1,251 +1,425 @@
 <template>
-  <div class="home-wrapper">
-    <section class="hero-section">
-      <div class="hero-content">
-        <h1>发现城市好生活</h1>
-        <p>探索附近的宝藏店铺，分享你的真实体验</p>
-        <div class="search-box">
-          <input v-model="search" placeholder="搜索美食、咖啡、好店..." @keyup.enter="searchByName" />
-          <button @click="searchByName">搜索</button>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-left">
+        <div class="hero-title">发现附近好店</div>
+        <div class="hero-sub">按类型筛选、搜索店铺、查看优惠券与探店笔记</div>
+
+        <div class="hero-search">
+          <van-search
+              v-model="keyword"
+              shape="round"
+              placeholder="搜索店铺名称（支持模糊）"
+              @search="doSearch"
+              @clear="clearSearch"
+              clearable
+          />
+        </div>
+
+        <div class="type-strip">
+          <button
+              v-for="t in types"
+              :key="t.id"
+              class="type-chip"
+              :class="{ active: mode === 'type' && activeTypeId === t.id }"
+              @click="selectType(t.id)"
+          >
+            <span class="dot" />
+            {{ t.name }}
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="metric">
+          <div class="metric-label">当前模式</div>
+          <div class="metric-value">{{ modeLabel }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">已加载店铺</div>
+          <div class="metric-value">{{ shops.length }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">城市</div>
+          <div class="metric-value">上海</div>
         </div>
       </div>
     </section>
 
-    <div class="main-container">
-
-      <section class="category-section">
-        <h3 class="section-title">热门分类</h3>
-        <div class="category-list">
-          <div
-              class="cat-item"
-              v-for="(t, idx) in types"
-              :key="t.id"
-              :class="{ active: idx === typeIndex }"
-              @click="changeType(idx)"
-          >
-            <div class="cat-icon">{{ t.icon || '🛍️' }}</div>
-            <span>{{ t.name }}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="shop-section">
-        <div class="section-header">
-          <h3 class="section-title">推荐好店</h3>
-          <div class="actions">
-            <button class="text-btn" @click="geoSearch">📍 查找附近</button>
-          </div>
-        </div>
-
-        <div class="shop-grid">
-          <div class="shop-card" v-for="shop in shops" :key="shop.id">
-            <div class="shop-img" :style="{ backgroundImage: `url(${shop.images || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60'})` }"></div>
-            <div class="shop-info">
-              <h4 class="shop-name">{{ shop.name }}</h4>
-              <div class="shop-meta">
-                <span class="score">⭐ {{ (shop.score / 10).toFixed(1) }}</span>
-                <span class="price">¥{{ shop.avgPrice || '-' }}/人</span>
-              </div>
-              <div class="shop-address">{{ shop.address || '暂无地址信息' }}</div>
-              <div class="shop-tags">
-                <span class="tag">{{ shop.area || '商圈' }}</span>
-                <span class="tag blue">{{ shop.comments }} 评价</span>
-              </div>
-              <button class="action-btn" @click="loadVouchers(shop)">抢优惠</button>
-            </div>
-
-            <div class="voucher-panel" v-if="activeShop?.id === shop.id">
-              <div v-if="loadingVoucher" class="loading-text">加载中...</div>
-              <ul v-else-if="vouchers.length > 0">
-                <li v-for="v in vouchers" :key="v.id" class="voucher-item">
-                  <div class="v-left">
-                    <div class="v-val">{{ v.actualValue }}元</div>
-                    <div class="v-cond">满{{ v.payValue }}可用</div>
-                  </div>
-                  <div class="v-right">
-                    <div class="v-title">{{ v.title }}</div>
-                    <button class="seckill-btn" @click="seckill(v.id)">
-                      秒杀
-                    </button>
-                  </div>
-                </li>
-              </ul>
-              <div v-else class="empty-text">暂无优惠券</div>
-              <div v-if="logMsg" class="log-text">{{ logMsg }}</div>
+    <section class="content">
+      <div class="card list-card">
+        <div class="card-head">
+          <div>
+            <div class="title">店铺列表</div>
+            <div class="muted">
+              <template v-if="mode === 'search'">关键词：{{ keyword }}</template>
+              <template v-else>类型：{{ currentTypeName }}</template>
             </div>
           </div>
+          <div class="row">
+            <van-button size="small" plain type="primary" @click="reload">刷新</van-button>
+          </div>
         </div>
-      </section>
-    </div>
+
+        <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="loadMore">
+          <div v-if="shops.length === 0 && !loading" style="padding: 20px 0;">
+            <van-empty description="暂无数据" />
+          </div>
+
+          <div class="shop-grid">
+            <div v-for="s in shops" :key="s.id" class="shop-card" @click="openShop(s)">
+              <van-image class="shop-cover" :src="s._cover" fit="cover" radius="12px" />
+              <div class="shop-body">
+                <div class="shop-top">
+                  <div class="shop-name">{{ s.name }}</div>
+                  <van-tag type="primary" plain size="mini">ID {{ s.id }}</van-tag>
+                </div>
+                <div class="shop-meta">
+                  <van-rate :model-value="s._score" readonly allow-half size="14" color="#FFD21E" />
+                  <span class="score">{{ s._score.toFixed(1) }}</span>
+                  <span class="dot-sep">·</span>
+                  <span class="price">¥{{ s.avgPrice || 0 }}/人</span>
+                </div>
+                <div class="shop-tags">
+                  <van-tag v-if="s.comments >= 100" type="danger" plain size="mini">人气</van-tag>
+                  <van-tag v-if="s.sold >= 1000" type="success" plain size="mini">热卖</van-tag>
+                  <span class="area">{{ s.area || '未知商圈' }}</span>
+                </div>
+                <div class="shop-desc">
+                  <span class="addr">{{ s.address || '暂无地址' }}</span>
+                  <span class="open" v-if="s.openHours">营业：{{ s.openHours }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </van-list>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { request } from '../api/http';
-import { useSessionStore } from '../stores/session';
+import { splitImages } from '../utils/media';
 
-const session = useSessionStore();
+const router = useRouter();
+
 const types = ref([]);
-const typeIndex = ref(0);
+const activeTypeId = ref(null);
+const keyword = ref('');
+const mode = ref('type'); // type | search
+
 const shops = ref([]);
-const search = ref('');
-const activeShop = ref(null);
-const vouchers = ref([]);
-const loadingVoucher = ref(false);
-const logMsg = ref('');
+const current = ref(1);
+const loading = ref(false);
+const finished = ref(false);
+
+const modeLabel = computed(() => (mode.value === 'search' ? '搜索' : '按类型'));
+const currentTypeName = computed(() => types.value.find(t => t.id === activeTypeId.value)?.name || '-');
+
+function normalizeShop(s) {
+  const imgs = splitImages(s.images);
+  const cover = imgs[0] || '';
+  return { ...s, _imgs: imgs, _cover: cover, _score: ((s.score || 0) / 10) };
+}
+
+async function loadTypes() {
+  const list = await request('/shop-type/list');
+  types.value = Array.isArray(list) ? list : [];
+  if (!activeTypeId.value && types.value.length) {
+    activeTypeId.value = types.value[0].id;
+  }
+}
+
+function resetList() {
+  shops.value = [];
+  current.value = 1;
+  finished.value = false;
+}
+
+async function loadMore() {
+  if (loading.value || finished.value) return;
+  loading.value = true;
+  try {
+    let list = [];
+    if (mode.value === 'search' && keyword.value.trim()) {
+      list = await request(`/shop/of/name?name=${encodeURIComponent(keyword.value.trim())}&current=${current.value}`);
+    } else {
+      if (!activeTypeId.value) {
+        finished.value = true;
+        return;
+      }
+      list = await request(`/shop/of/type?typeId=${activeTypeId.value}&current=${current.value}`);
+    }
+    const rows = Array.isArray(list) ? list : [];
+    if (rows.length === 0) {
+      finished.value = true;
+      return;
+    }
+    shops.value.push(...rows.map(normalizeShop));
+    current.value += 1;
+  } catch (e) {
+    finished.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function selectType(typeId) {
+  mode.value = 'type';
+  keyword.value = '';
+  activeTypeId.value = typeId;
+  resetList();
+  loadMore();
+}
+
+function doSearch() {
+  if (!keyword.value.trim()) return;
+  mode.value = 'search';
+  resetList();
+  loadMore();
+}
+
+function clearSearch() {
+  if (mode.value !== 'search') return;
+  mode.value = 'type';
+  keyword.value = '';
+  resetList();
+  loadMore();
+}
+
+function reload() {
+  resetList();
+  loadMore();
+}
+
+function openShop(shop) {
+  router.push(`/shops/${shop.id}`);
+}
 
 onMounted(async () => {
   await loadTypes();
-  await loadHotShops();
+  await loadMore();
 });
-
-async function loadTypes() {
-  try {
-    const list = await request('/shop-type/list');
-    // 给分类加点emoji图标（如果是纯文字接口）
-    const icons = ['🍔','🏨','🎟️','💇','🎤','💆','🏋️','🏙️','🍹','🍱'];
-    types.value = list.map((item, i) => ({ ...item, icon: icons[i % icons.length] }));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function loadHotShops() {
-  if (!types.value.length) return;
-  const typeId = types.value[typeIndex.value]?.id;
-  try {
-    shops.value = await request(`/shop/of/type?typeId=${typeId}&current=1`);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function changeType(idx) {
-  typeIndex.value = idx;
-  loadHotShops();
-}
-
-async function searchByName() {
-  if(!search.value) return loadHotShops();
-  try {
-    shops.value = await request(`/shop/of/name?name=${encodeURIComponent(search.value)}&current=1`);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function geoSearch() {
-  if (!types.value.length) return;
-  const typeId = types.value[typeIndex.value]?.id;
-  if(!navigator.geolocation) return alert('浏览器不支持定位');
-
-  navigator.geolocation.getCurrentPosition(
-      async pos => {
-        const { longitude, latitude } = pos.coords;
-        shops.value = await request(`/shop/of/type?typeId=${typeId}&current=1&x=${longitude}&y=${latitude}`);
-      },
-      () => alert('无法获取定位，请确保开启权限')
-  );
-}
-
-async function loadVouchers(shop) {
-  if (activeShop.value?.id === shop.id) {
-    activeShop.value = null; // 收起
-    return;
-  }
-  activeShop.value = shop;
-  vouchers.value = [];
-  loadingVoucher.value = true;
-  logMsg.value = '';
-  try {
-    vouchers.value = await request(`/voucher/list/${shop.id}`);
-  } catch (e) {
-    logMsg.value = e.message;
-  } finally {
-    loadingVoucher.value = false;
-  }
-}
-
-async function seckill(id) {
-  if (!session.token) {
-    alert('请先登录后抢购！点击右上角登录');
-    return;
-  }
-  try {
-    const orderId = await request(`/voucher-order/seckill/${id}`, { method: 'POST', token: session.token });
-    logMsg.value = `抢购成功！订单号: ${orderId}，请前往订单页支付`;
-  } catch (e) {
-    logMsg.value = '抢购失败：' + e.message;
-  }
-}
 </script>
 
 <style scoped>
-.home-wrapper { background: #f9f9f9; min-height: 100vh; padding-bottom: 40px; }
-
-/* Hero Section */
-.hero-section {
-  background: linear-gradient(135deg, #2b32b2 0%, #1488cc 100%);
-  color: white; padding: 60px 20px; text-align: center;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
-.hero-content h1 { font-size: 36px; margin-bottom: 10px; font-weight: 800; }
-.hero-content p { font-size: 16px; opacity: 0.9; margin-bottom: 30px; }
-.search-box {
-  max-width: 600px; margin: 0 auto; display: flex; background: white; padding: 5px; border-radius: 50px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+.hero {
+  border-radius: 18px;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 18px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(255, 107, 107, 0.2);
 }
-.search-box input {
-  flex: 1; border: none; padding: 12px 20px; font-size: 16px; outline: none; border-radius: 50px 0 0 50px;
+
+.hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
 }
-.search-box button {
-  background: #f63; color: white; border: none; padding: 0 30px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: background 0.2s;
+
+.hero-sub {
+  margin-top: 6px;
+  opacity: 0.9;
+  font-size: 13px;
 }
-.search-box button:hover { background: #e55; }
 
-.main-container { max-width: 1200px; margin: -30px auto 0; padding: 0 20px; position: relative; z-index: 2; }
-
-/* Categories */
-.category-section { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 24px; }
-.section-title { font-size: 18px; font-weight: 700; color: #333; margin-bottom: 16px; border-left: 4px solid #f63; padding-left: 10px; }
-.category-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
-.cat-item {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 80px; cursor: pointer; padding: 10px; border-radius: 8px; transition: background 0.2s;
+.hero-search {
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 6px;
 }
-.cat-item:hover { background: #f5f5f5; }
-.cat-item.active { background: #fff0e6; }
-.cat-item.active span { color: #f63; font-weight: bold; }
-.cat-icon { font-size: 24px; background: #f0f2f5; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
 
-/* Shops */
-.shop-section .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.text-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; }
-.text-btn:hover { color: #f63; }
+.type-strip {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-.shop-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: transform 0.2s; }
-.shop-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
-.shop-img { height: 160px; background-size: cover; background-position: center; }
-.shop-info { padding: 16px; }
-.shop-name { font-size: 17px; font-weight: bold; color: #333; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.shop-meta { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 8px; }
-.score { color: #f63; font-weight: bold; }
-.shop-address { font-size: 12px; color: #999; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.shop-tags { display: flex; gap: 6px; margin-bottom: 12px; }
-.tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f5f5f5; color: #666; }
-.tag.blue { background: #e6f7ff; color: #1890ff; }
-.action-btn { width: 100%; padding: 8px; background: #f0f2f5; border: none; border-radius: 6px; color: #333; font-weight: 600; cursor: pointer; }
-.action-btn:hover { background: #e4e6eb; }
+.type-chip {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
 
-/* Vouchers */
-.voucher-panel { background: #fffbf0; padding: 12px; border-top: 1px dashed #e8e8e8; }
-.loading-text, .empty-text, .log-text { font-size: 12px; color: #999; text-align: center; padding: 10px 0; }
-.log-text { color: #f63; }
-.voucher-item { display: flex; background: white; border-radius: 6px; margin-bottom: 8px; overflow: hidden; border: 1px solid #ffe8cc; }
-.v-left { background: #fff7e6; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 80px; border-right: 1px dashed #ffd591; }
-.v-val { font-size: 18px; font-weight: bold; color: #f63; }
-.v-cond { font-size: 10px; color: #fa8c16; }
-.v-right { flex: 1; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-.v-title { font-size: 13px; color: #333; font-weight: 500; }
-.seckill-btn { padding: 4px 12px; background: #f63; color: white; border: none; border-radius: 12px; font-size: 12px; cursor: pointer; }
+.type-chip:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.type-chip.active {
+  background: #fff;
+  border-color: #fff;
+  color: #ff6b6b;
+}
+
+.type-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.type-chip.active .dot {
+  background: #ff6b6b;
+}
+
+.hero-right {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.metric {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  padding: 14px 14px;
+}
+
+.metric-label {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.metric-value {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.content {
+  display: grid;
+}
+
+.list-card {
+  padding: 18px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.shop-card {
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s, box-shadow 0.15s;
+  background: #fff;
+}
+
+.shop-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
+}
+
+.shop-cover {
+  width: 100%;
+  height: 160px;
+  background: #f5f6f7;
+}
+
+.shop-body {
+  padding: 14px 14px 16px;
+}
+
+.shop-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shop-name {
+  font-weight: 800;
+  font-size: 15px;
+  color: #222;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: #666;
+  font-size: 12px;
+}
+
+.score {
+  color: #ff9c00;
+  font-weight: 700;
+}
+
+.dot-sep {
+  opacity: 0.6;
+}
+
+.price {
+  font-weight: 600;
+}
+
+.shop-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.area {
+  margin-left: auto;
+  font-size: 12px;
+  color: #999;
+}
+
+.shop-desc {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  color: #999;
+  font-size: 12px;
+}
+
+.open {
+  color: #888;
+}
+
+@media (max-width: 980px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
+

@@ -25,4 +25,9 @@ public interface IBlogService extends IService<Blog> {
     Result saveBlog(Blog blog);
 
     Result queryBlogOfFollow(Long max, Integer offset);
+
+    /**
+     * 按店铺查询探店笔记（用于店铺详情页展示）
+     */
+    Result queryBlogOfShop(Long shopId, Integer current);
 }

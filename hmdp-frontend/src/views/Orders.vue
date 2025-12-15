@@ -34,7 +34,6 @@ const orders = ref([]);
 const log = ref('等待操作');
 
 onMounted(() => {
-  session.role = 'USER';
   load();
 });
 

@@ -1,10 +1,13 @@
 <template>
   <aside class="side-rail">
     <div class="role-card">
-      <div class="avatar">{{ avatarText }}</div>
+      <van-image round width="48" height="48" :src="avatarUrl" class="avatar-img" />
       <div class="info">
         <div class="name">{{ session.profile.nickName || '未设置昵称' }}</div>
-        <div class="role-badge">{{ roleLabel }}</div>
+        <div class="meta">
+          <span class="role-badge">{{ roleLabel }}</span>
+          <span class="uid">ID {{ session.profile.id ?? '-' }}</span>
+        </div>
       </div>
     </div>
 
@@ -30,12 +33,12 @@
 <script setup>
 import { computed } from 'vue';
 import { useSessionStore } from '../stores/session';
+import { resolveImg } from '../utils/media';
+import defaultAvatar from '../assets/default-avatar.svg';
 
 const session = useSessionStore();
 
-const avatarText = computed(() => {
-  return (session.profile.nickName || 'U').charAt(0).toUpperCase();
-});
+const avatarUrl = computed(() => resolveImg(session.profile.icon) || defaultAvatar);
 
 const roleLabel = computed(() => {
   const map = { 'USER': '普通用户', 'MERCHANT': '商家入驻', 'ADMIN': '超级管理员' };
@@ -92,22 +95,18 @@ const currentMenu = computed(() => {
   border-bottom: 1px solid #f5f5f5;
   background: linear-gradient(to bottom, #fafafa, #fff);
 }
-.avatar {
-  width: 48px; height: 48px;
-  background: #f0f2f5;
-  color: #666;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: bold; font-size: 18px;
+.avatar-img {
   border: 2px solid #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .info { flex: 1; overflow: hidden; }
 .name { font-weight: 600; font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .role-badge {
   display: inline-block; font-size: 10px; padding: 2px 6px;
-  background: #e6f7ff; color: #1890ff; border-radius: 4px; margin-top: 4px;
+  background: #e6f7ff; color: #1890ff; border-radius: 4px;
 }
+.uid { font-size: 11px; color: #aaa; }
 
 .nav-menu { flex: 1; padding: 16px 12px; overflow-y: auto; }
 .nav-item {

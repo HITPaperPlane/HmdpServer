@@ -23,7 +23,7 @@
                 {{ countdown > 0 ? `${countdown}s 后重发` : '获取验证码' }}
               </button>
             </div>
-            <div class="tips" v-if="tab === 'USER'">未注册的手机号验证通过后将自动注册</div>
+            <div class="tips" v-if="tab === 'USER'">未注册的邮箱验证通过后将自动注册</div>
           </template>
 
           <template v-else>

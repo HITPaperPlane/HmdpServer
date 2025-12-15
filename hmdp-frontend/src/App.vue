@@ -13,11 +13,21 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import NavBar from './components/NavBar.vue';
 import SideRail from './components/SideRail.vue';
 import { useSessionStore } from './stores/session';
 
 const session = useSessionStore();
+
+onMounted(async () => {
+  if (!session.token) return;
+  try {
+    await session.refreshProfile();
+  } catch {
+    // ignore
+  }
+});
 </script>
 
 <style scoped>

@@ -8,8 +8,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueup/vue-quill": "^1.2.0",
+    "dompurify": "^3.3.1",
     "pinia": "^2.1.7",
-    "vant": "^4.8.0",
+    "quill": "^2.0.3",
+    "vant": "^4.9.22",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5"
   },

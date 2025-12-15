@@ -16,8 +16,9 @@
       <div class="user-actions">
         <template v-if="session.token">
           <div class="user-profile">
-            <div class="avatar-placeholder">{{ avatarText }}</div>
+            <van-image round width="32" height="32" :src="avatarUrl" />
             <span class="nickname">{{ session.profile.nickName || '用户' }}</span>
+            <span class="uid">ID {{ session.profile.id ?? '-' }}</span>
             <button class="logout-link" @click="logout">退出</button>
           </div>
         </template>
@@ -41,14 +42,15 @@ import { useRouter, RouterLink } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import LoginModal from './LoginModal.vue';
 import { request } from '../api/http';
+import { resolveImg } from '../utils/media';
+import defaultAvatar from '../assets/default-avatar.svg';
 
 const router = useRouter();
 const session = useSessionStore();
 const showLoginModal = ref(false);
 
-const avatarText = computed(() => {
-  const name = session.profile.nickName || 'User';
-  return name.charAt(0).toUpperCase();
+const avatarUrl = computed(() => {
+  return resolveImg(session.profile.icon) || defaultAvatar;
 });
 
 async function logout() {
@@ -105,11 +107,8 @@ async function logout() {
 .login-btn:hover { background: #000; }
 
 .user-profile { display: flex; align-items: center; gap: 10px; }
-.avatar-placeholder {
-  width: 32px; height: 32px; background: #f0f2f5; color: #666; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;
-}
 .nickname { font-size: 14px; color: #333; max-width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.uid { font-size: 12px; color: #aaa; }
 .logout-link {
   background: none; border: none; color: #999; font-size: 13px; cursor: pointer; padding: 0 5px;
 }

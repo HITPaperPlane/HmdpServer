@@ -11,10 +11,12 @@ import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.Follow;
 import com.hmdp.entity.User;
+import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IFollowService;
+import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
@@ -51,6 +53,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Resource
     private IUserService userService;
 
+    @Resource
+    private IUserInfoService userInfoService;
+
     @Autowired
     private IBlogService blogService;
     @Resource
@@ -79,6 +84,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
             return userService.getById(blog.getUserId());
         }, taskExecutor);
+        CompletableFuture<UserInfo> userInfoFuture = blogFuture.thenApplyAsync(blog -> {
+            if (blog == null || blog.getUserId() == null) {
+                return null;
+            }
+            return userInfoService.getById(blog.getUserId());
+        }, taskExecutor);
         CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
             if (currentUserId == null) {
                 return null;
@@ -104,7 +115,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             User author = userFuture.join();
             if (author != null) {
                 blog.setName(author.getNickName());
-                blog.setIcon(author.getIcon());
+            }
+            UserInfo authorInfo = userInfoFuture.join();
+            if (authorInfo != null) {
+                blog.setIcon(authorInfo.getIcon());
             }
             blog.setIsLike(likeFuture.join());
         } catch (CompletionException e) {
@@ -145,14 +159,19 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 : userService.listByIds(userIds).stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, String> iconMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userInfoService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(UserInfo::getUserId, ui -> Objects.toString(ui.getIcon(), ""), (a, b) -> a));
 
         // 填充发布者信息 + 点赞状态
         for (Blog blog : records) {
             User u = userMap.get(blog.getUserId());
             if (u != null) {
                 blog.setName(u.getNickName());
-                blog.setIcon(u.getIcon());
             }
+            blog.setIcon(iconMap.get(blog.getUserId()));
             //追加判断blog是否被当前用户点赞，逻辑封装到isBlogLiked方法中
             isBlogLiked(blog);
         }
@@ -180,7 +199,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return;
         }
         blog.setName(user.getNickName());
-        blog.setIcon(user.getIcon());
+        UserInfo info = userInfoService.getById(userId);
+        if (info != null) {
+            blog.setIcon(info.getIcon());
+        }
     }
 
     @Override
@@ -225,11 +247,18 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         //所以我们需要用order by field来指定排序方式，期望的排序方式就是按照查询出来的id进行排序
         String idsStr = StrUtil.join(",", ids);
         //select * from tb_user where id in (ids[0], ids[1] ...) order by field(id, ids[0], ids[1] ...)
-        List<UserDTO> userDTOS = userService.query().in("id", ids)
+        List<User> users = userService.query().in("id", ids)
                 .last("order by field(id," + idsStr + ")")
-                .list().stream()
-                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .list();
+        List<UserDTO> userDTOS = users.stream()
+                .map(u -> BeanUtil.copyProperties(u, UserDTO.class))
                 .collect(Collectors.toList());
+        Map<Long, String> iconMap = userInfoService.listByIds(ids).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(UserInfo::getUserId, ui -> Objects.toString(ui.getIcon(), ""), (a, b) -> a));
+        for (UserDTO dto : userDTOS) {
+            dto.setIcon(iconMap.get(dto.getId()));
+        }
         return Result.ok(userDTOS);
     }
 
@@ -305,5 +334,47 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         scrollResult.setOffset(os);
         scrollResult.setMinTime(minTime);
         return Result.ok(scrollResult);
+    }
+
+    @Override
+    public Result queryBlogOfShop(Long shopId, Integer current) {
+        if (shopId == null) {
+            return Result.fail("店铺ID不能为空");
+        }
+        int pageNum = (current == null || current < 1) ? 1 : current;
+
+        Page<Blog> page = query()
+                .eq("shop_id", shopId)
+                .orderByDesc("create_time")
+                .page(new Page<>(pageNum, SystemConstants.MAX_PAGE_SIZE));
+        List<Blog> records = page.getRecords();
+        if (records == null || records.isEmpty()) {
+            return Result.ok(Collections.emptyList());
+        }
+
+        Set<Long> userIds = records.stream()
+                .map(Blog::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, User> userMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, String> iconMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userInfoService.listByIds(userIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(UserInfo::getUserId, ui -> Objects.toString(ui.getIcon(), ""), (a, b) -> a));
+
+        for (Blog blog : records) {
+            User u = userMap.get(blog.getUserId());
+            if (u != null) {
+                blog.setName(u.getNickName());
+            }
+            blog.setIcon(iconMap.get(blog.getUserId()));
+            isBlogLiked(blog);
+        }
+        return Result.ok(records);
     }
 }

@@ -46,7 +46,7 @@ body {
 }
 
 /* 按钮样式 */
-button {
+button:not(.van-button) {
   padding: 8px 16px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -56,41 +56,64 @@ button {
   font-weight: 500;
   transition: all 0.2s;
 }
-button:hover {
+button:not(.van-button):hover {
   background: var(--primary-hover);
 }
-button:disabled {
+button:not(.van-button):disabled {
   background: #ccc;
   cursor: not-allowed;
 }
-button.secondary {
+button.secondary:not(.van-button) {
   background: white;
   color: #666;
   border: 1px solid #ddd;
 }
-button.secondary:hover {
+button.secondary:not(.van-button):hover {
   border-color: #999;
   color: #333;
 }
-button.text {
+button.text:not(.van-button) {
   background: none;
   color: #666;
   padding: 4px 8px;
 }
-button.text:hover {
+button.text:not(.van-button):hover {
   background: rgba(0,0,0,0.05);
 }
 
 /* 输入框样式 */
-input {
+input:not(.van-field__control) {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   outline: none;
   transition: border-color 0.2s;
 }
-input:focus {
+input:not(.van-field__control):focus {
   border-color: var(--primary);
+}
+
+textarea:not(.van-field__control) {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 90px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+textarea:not(.van-field__control):focus {
+  border-color: var(--primary);
+}
+
+select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
 }
 
 /* 文本辅助 */

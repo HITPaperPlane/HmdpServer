@@ -10,11 +10,13 @@ import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Merchant;
 import com.hmdp.entity.Role;
 import com.hmdp.entity.User;
+import com.hmdp.entity.UserInfo;
 import com.hmdp.entity.UserRole;
 import com.hmdp.mapper.MerchantMapper;
 import com.hmdp.mapper.RoleMapper;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.mapper.UserRoleMapper;
+import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
@@ -48,6 +50,8 @@ public class MerchantAuthController {
     private UserRoleMapper userRoleMapper;
     @Resource
     private MerchantMapper merchantMapper;
+    @Resource
+    private IUserInfoService userInfoService;
     @Resource
     private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
 
@@ -83,10 +87,11 @@ public class MerchantAuthController {
 
         String token = UUID.randomUUID().toString();
         UserDTO dto = BeanUtil.copyProperties(user, UserDTO.class);
+        UserInfo info = userInfoService.getById(user.getId());
         HashMap<String, String> userMap = new HashMap<>();
         userMap.put("id", String.valueOf(dto.getId()));
         userMap.put("nickName", dto.getNickName());
-        userMap.put("icon", Objects.toString(dto.getIcon(), ""));
+        userMap.put("icon", info != null ? Objects.toString(info.getIcon(), "") : "");
         userMap.put("role", MERCHANT_ROLE_CODE);
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
