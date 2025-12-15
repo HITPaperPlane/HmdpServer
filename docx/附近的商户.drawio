@@ -1,0 +1,94 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="第 1 页" id="968bu9g5oAOxyno7Fuxw">
+    <mxGraphModel dx="1469" dy="907" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-1" value="阶段一：数据预热 (启动/定时)" style="swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;startSize=20;horizontal=0;horizontalStack=1;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="50" y="20" width="260" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-2" value="" style="swimlane;startSize=20;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-1">
+          <mxGeometry x="20" width="240" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-3" value="查询 MySQL 所有店铺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-2">
+          <mxGeometry x="35" y="60" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-4" value="按 TypeId 分组" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-2">
+          <mxGeometry x="35" y="150" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-2" source="Vc0TdH4PHMMHopyxCqFJ-3" target="Vc0TdH4PHMMHopyxCqFJ-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-6" value="遍历每一组店铺集合" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-2">
+          <mxGeometry x="20" y="240" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-2" source="Vc0TdH4PHMMHopyxCqFJ-4" target="Vc0TdH4PHMMHopyxCqFJ-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-8" value="拼接 Key: shop:geo:{typeId}&#xa;封装 Member: shopId&#xa;封装 Point: (x, y)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-2">
+          <mxGeometry x="35" y="340" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-2" source="Vc0TdH4PHMMHopyxCqFJ-6" target="Vc0TdH4PHMMHopyxCqFJ-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-10" value="写入 Redis (GEOADD)&#xa;底层 ZSet: Score=GeoHash" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-2">
+          <mxGeometry x="35" y="460" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-2" source="Vc0TdH4PHMMHopyxCqFJ-8" target="Vc0TdH4PHMMHopyxCqFJ-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-12" value="阶段二：附近商户查询 (Runtime)" style="swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;startSize=20;horizontal=0;horizontalStack=1;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="460" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-13" value="" style="swimlane;startSize=20;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-12">
+          <mxGeometry x="20" width="440" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-14" value="前端请求&#xa;(typeId, current, x, y)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="135" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-15" value="计算分页参数&#xa;from = (current-1)*size&#xa;end = current*size" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="135" y="110" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-14" target="Vc0TdH4PHMMHopyxCqFJ-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-17" value="Redis GEOSEARCH&#xa;Radius 5000m Limit end" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="120" y="190" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-15" target="Vc0TdH4PHMMHopyxCqFJ-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-19" value="返回 0 ~ end 条数据&#xa;(例如 0 ~ 10)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="330" y="205" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-20" value="内存逻辑分页 (Java)&#xa;stream().skip(from)" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="135" y="290" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-17" target="Vc0TdH4PHMMHopyxCqFJ-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-22" value="收集 ID 列表 和 Distance Map" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="135" y="370" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-20" target="Vc0TdH4PHMMHopyxCqFJ-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-24" value="数据库查询详情&#xa;WHERE id IN (...)&#xa;ORDER BY FIELD (id, ...)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="130" y="440" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-22" target="Vc0TdH4PHMMHopyxCqFJ-24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-26" value="回填距离并返回" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="135" y="540" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="Vc0TdH4PHMMHopyxCqFJ-13" source="Vc0TdH4PHMMHopyxCqFJ-24" target="Vc0TdH4PHMMHopyxCqFJ-26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Vc0TdH4PHMMHopyxCqFJ-28" value="防止乱序关键点" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#FF0000;" vertex="1" parent="Vc0TdH4PHMMHopyxCqFJ-13">
+          <mxGeometry x="320" y="460" width="90" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
