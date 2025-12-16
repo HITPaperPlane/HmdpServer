@@ -216,6 +216,7 @@ const activeTab = ref(0);
 
 const hot = reactive({ list: [], page: 1, loading: false, finished: false });
 const feed = reactive({ list: [], max: Date.now(), offset: 0, loading: false, finished: false });
+const followCache = reactive({});
 
 const toolbar = [
   [{ header: [1, 2, 3, false] }],
@@ -248,7 +249,8 @@ function normalizeBlog(b) {
   const imgs = splitImages(b.images);
   const authorAvatar = resolveImg(b.icon);
   const snippet = sanitizeHtml(b.content || '');
-  return { ...b, _imgs: imgs, _authorAvatar: authorAvatar, _snippet: snippet, _following: false };
+  const followed = followCache[b.userId] === true;
+  return { ...b, _imgs: imgs, _authorAvatar: authorAvatar, _snippet: snippet, _following: followed };
 }
 
 async function loadHot() {
@@ -261,6 +263,7 @@ async function loadHot() {
       return;
     }
     hot.list.push(...rows.map(normalizeBlog));
+    await preloadFollow(rows);
     hot.page += 1;
     if (rows.length < 10) hot.finished = true;
   } catch {
@@ -280,6 +283,7 @@ async function loadFeed() {
       return;
     }
     feed.list.push(...rows.map(normalizeBlog));
+    await preloadFollow(rows);
     feed.max = data.minTime;
     feed.offset = data.offset;
   } catch {
@@ -316,9 +320,27 @@ async function toggleFollow(b) {
     const target = isFollow ? 'false' : 'true';
     await request(`/follow/${b.userId}/${target}`, { method: 'PUT', token: session.token });
     b._following = !isFollow;
+    followCache[b.userId] = b._following;
   } catch {
     // ignore
   }
+}
+
+async function preloadFollow(rows) {
+  if (!session.token) return;
+  const ids = Array.from(new Set(rows.map(r => r.userId).filter(id => id && id !== session.profile.id && followCache[id] === undefined)));
+  if (!ids.length) return;
+  await Promise.all(ids.map(async id => {
+    try {
+      const f = await request(`/follow/or/not/${id}`, { token: session.token });
+      followCache[id] = Boolean(f);
+    } catch {
+      followCache[id] = false;
+    }
+  }));
+  // 回填已有列表的展示状态
+  hot.list.forEach(b => { if (followCache[b.userId] !== undefined) b._following = followCache[b.userId]; });
+  feed.list.forEach(b => { if (followCache[b.userId] !== undefined) b._following = followCache[b.userId]; });
 }
 
 let shopSearchTimer = null;

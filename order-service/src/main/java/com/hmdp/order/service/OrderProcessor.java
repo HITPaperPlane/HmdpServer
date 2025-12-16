@@ -58,7 +58,7 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
                 writeStatus(requestId, "FAILED", null, message.getVoucherId(), message.getUserId(), "LIMIT", buyCount);
                 return;
             }
-            Integer cnt = this.count(new QueryWrapper<VoucherOrder>()
+            Long cnt = this.count(new QueryWrapper<VoucherOrder>()
                     .eq("user_id", message.getUserId())
                     .eq("voucher_id", message.getVoucherId()));
             if (cnt != null && cnt > 0) {

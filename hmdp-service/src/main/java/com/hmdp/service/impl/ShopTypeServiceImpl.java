@@ -62,6 +62,9 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
         if (tmp == null){
             return Result.fail("店铺类型不存在！！");
         }
+        if (tmp.isEmpty()) {
+            tmp = seedDefaults();
+        }
         //查到了转为json字符串，存入redis
         for (ShopType shopType : tmp) {
             String jsonStr = JSONUtil.toJsonStr(shopType);
@@ -80,5 +83,41 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
 
         //最终把查询到的商户分类信息返回给前端
         return Result.ok(tmp);
+    }
+
+    @Override
+    public Result createOrUpdate(ShopType shopType, boolean requireId) {
+        if (shopType == null || cn.hutool.core.util.StrUtil.isBlank(shopType.getName())) {
+            return Result.fail("类型名称不能为空");
+        }
+        if (requireId && shopType.getId() == null) {
+            return Result.fail("ID 不能为空");
+        }
+        if (shopType.getSort() == null) {
+            shopType.setSort(999);
+        }
+        boolean ok;
+        if (shopType.getId() == null) {
+            ok = this.save(shopType);
+        } else {
+            ok = this.updateById(shopType);
+        }
+        if (!ok) {
+            return Result.fail("保存店铺类型失败");
+        }
+        // 清理缓存，下一次查询会重建
+        stringRedisTemplate.delete(CACHE_SHOP_TYPE_KEY);
+        return Result.ok(shopType.getId());
+    }
+
+    private List<ShopType> seedDefaults() {
+        List<ShopType> defaults = new ArrayList<>();
+        defaults.add(new ShopType().setName("美食").setIcon("https://dummyimg.com/food.png").setSort(1));
+        defaults.add(new ShopType().setName("咖啡").setIcon("https://dummyimg.com/coffee.png").setSort(2));
+        defaults.add(new ShopType().setName("饮品").setIcon("https://dummyimg.com/drink.png").setSort(3));
+        defaults.add(new ShopType().setName("休闲娱乐").setIcon("https://dummyimg.com/fun.png").setSort(4));
+        defaults.add(new ShopType().setName("酒店").setIcon("https://dummyimg.com/hotel.png").setSort(5));
+        this.saveBatch(defaults);
+        return query().orderByAsc("sort").list();
     }
 }

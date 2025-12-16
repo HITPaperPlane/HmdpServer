@@ -20,6 +20,7 @@ import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.UserHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,6 +55,14 @@ public class MerchantAuthController {
     private IUserInfoService userInfoService;
     @Resource
     private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+
+    public static class MerchantProfileDTO {
+        public String nickName;
+        public String icon;
+        public Integer gender;
+        public String city;
+        public String introduce;
+    }
 
     @PostMapping("/code")
     public Result sendCode(@RequestBody LoginFormDTO form) throws MessagingException {
@@ -106,7 +115,7 @@ public class MerchantAuthController {
             role = new Role().setCode(MERCHANT_ROLE_CODE).setName(MERCHANT_ROLE_NAME);
             roleMapper.insert(role);
         }
-        Integer exists = userRoleMapper.selectCount(new QueryWrapper<UserRole>()
+        Long exists = userRoleMapper.selectCount(new QueryWrapper<UserRole>()
                 .eq("user_id", userId).eq("role_id", role.getId()));
         if (exists == null || exists == 0) {
             userRoleMapper.insert(new UserRole().setUserId(userId).setRoleId(role.getId()));
@@ -114,9 +123,31 @@ public class MerchantAuthController {
     }
 
     private void ensureMerchant(Long userId) {
-        Integer exists = merchantMapper.selectCount(new QueryWrapper<Merchant>().eq("user_id", userId));
+        Long exists = merchantMapper.selectCount(new QueryWrapper<Merchant>().eq("user_id", userId));
         if (exists == null || exists == 0) {
             merchantMapper.insert(new Merchant().setUserId(userId).setStatus(1));
         }
+    }
+
+    @PostMapping("/profile/update")
+    public Result updateProfile(@RequestBody MerchantProfileDTO dto) {
+        Long userId = UserHolder.getUser().getId();
+        if (userId == null) {
+            return Result.fail("未登录");
+        }
+        if (dto.nickName != null) {
+            userService.lambdaUpdate()
+                    .eq(User::getId, userId)
+                    .set(User::getNickName, dto.nickName)
+                    .update();
+        }
+        userInfoService.lambdaUpdate()
+                .eq(UserInfo::getUserId, userId)
+                .set(dto.icon != null, UserInfo::getIcon, dto.icon)
+                .set(dto.gender != null, UserInfo::getGender, dto.gender)
+                .set(dto.city != null, UserInfo::getCity, dto.city)
+                .set(dto.introduce != null, UserInfo::getIntroduce, dto.introduce)
+                .update();
+        return Result.ok();
     }
 }

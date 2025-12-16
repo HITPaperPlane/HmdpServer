@@ -57,7 +57,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         String key = "follows:" + userId;
         //判断是否关注
         if (isFellow) {
-            Integer exists = query().eq("user_id", userId).eq("follow_user_id", followUserId).count();
+            Long exists = query().eq("user_id", userId).eq("follow_user_id", followUserId).count();
             if (exists != null && exists > 0) {
                 // 幂等：已关注则只保证 Redis 中存在
                 stringRedisTemplate.opsForSet().add(key, followUserId.toString());
@@ -71,14 +71,12 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             if (successed) {
                 ensureUserInfoExists(userId);
                 ensureUserInfoExists(followUserId);
-                userInfoService.lambdaUpdate()
-                        .eq(UserInfo::getUserId, userId)
+                userInfoService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<UserInfo>()
                         .setSql("followee = followee + 1")
-                        .update();
-                userInfoService.lambdaUpdate()
-                        .eq(UserInfo::getUserId, followUserId)
+                        .eq("user_id", userId));
+                userInfoService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<UserInfo>()
                         .setSql("fans = fans + 1")
-                        .update();
+                        .eq("user_id", followUserId));
             }
             //则将数据也写入Redis
             if (successed) {
@@ -96,14 +94,12 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             if (successed) {
                 ensureUserInfoExists(userId);
                 ensureUserInfoExists(followUserId);
-                userInfoService.lambdaUpdate()
-                        .eq(UserInfo::getUserId, userId)
+                userInfoService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<UserInfo>()
                         .setSql("followee = IF(followee > 0, followee - 1, 0)")
-                        .update();
-                userInfoService.lambdaUpdate()
-                        .eq(UserInfo::getUserId, followUserId)
+                        .eq("user_id", userId));
+                userInfoService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<UserInfo>()
                         .setSql("fans = IF(fans > 0, fans - 1, 0)")
-                        .update();
+                        .eq("user_id", followUserId));
             }
             //则将数据也从Redis中移除
             stringRedisTemplate.opsForSet().remove(key, followUserId.toString());
@@ -116,10 +112,10 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         //获取当前登录的userId
         Long userId = UserHolder.getUser().getId();
 //        select count(*) from tb_follow where user_id = ?  and follow_user_id = ?
-        Integer count = query().eq("user_id", userId)
+        Long count = query().eq("user_id", userId)
                 .eq("follow_user_id", followUserId).count();
         //只想知道有没有，所以用count(*)即可
-        return Result.ok(count > 0);
+        return Result.ok(count != null && count > 0);
     }
 
     @Override

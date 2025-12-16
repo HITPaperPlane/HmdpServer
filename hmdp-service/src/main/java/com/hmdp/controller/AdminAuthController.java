@@ -20,7 +20,7 @@ import static com.hmdp.utils.RedisConstants.LOGIN_USER_TTL;
 public class AdminAuthController {
 
     private static final String ADMIN_USER = "admin";
-    private static final String ADMIN_PASS = "Admin#123456";
+    private static final String ADMIN_PASS = "123456";
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;

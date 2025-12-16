@@ -223,11 +223,12 @@ function openTypePicker(target) {
   typePicker.show = true;
 }
 
-function onPickType(option) {
+function onPickType(value) {
+  const picked = Number(value);
   if (typePicker.target === 'form') {
-    form.typeId = option.value;
+    form.typeId = picked;
   } else {
-    selectedType.value = option.value;
+    selectedType.value = picked;
     refreshByType();
   }
   typePicker.show = false;

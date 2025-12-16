@@ -194,8 +194,8 @@ async function loadTypes() {
   typePicker.columns = types.value.map(t => ({ text: `${t.name}（${t.id}）`, value: t.id }));
 }
 
-function onPickType(option) {
-  form.typeId = option.value;
+function onPickType({ selectedValues }) {
+  form.typeId = selectedValues[0];
   typePicker.show = false;
 }
 

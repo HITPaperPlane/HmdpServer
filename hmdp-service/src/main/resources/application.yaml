@@ -1,5 +1,13 @@
 server:
   port: 8088
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+  tomcat:
+    threads:
+      max: 1000
+    accept-count: 1000
 spring:
   application:
     name: hmdp
@@ -11,9 +19,9 @@ spring:
   redis:
     cluster:
       nodes:
-        - 123.56.100.212:6379
-        - 39.97.193.168:6379
-        - 115.190.193.236:6379
+      - 123.56.100.212:6379
+      - 39.97.193.168:6379
+      - 115.190.193.236:6379
     password: 123456
     lettuce:
       pool:
@@ -22,7 +30,7 @@ spring:
         min-idle: 1
         time-between-eviction-runs: 10s
   jackson:
-    default-property-inclusion: non_null # JSON处理时忽略非空字段
+    default-property-inclusion: non_null
   rabbitmq:
     host: 115.190.193.236
     username: paperplane
@@ -44,7 +52,7 @@ spring:
         max-interval: 10000ms
         multiplier: 1
 mybatis-plus:
-  type-aliases-package: com.hmdp.entity # 别名扫描包
+  type-aliases-package: com.hmdp.entity
 logging:
   level:
     com.hmdp: debug
