@@ -102,4 +102,13 @@ public class ShopController {
     public Result queryMyShops(@RequestParam(value = "name", required = false) String name) {
         return shopService.queryMyShops(name);
     }
+
+    /**
+     * 管理员一键重建 GEO 索引（shop:geo:{typeId}）
+     * 仅管理员可执行
+     */
+    @PostMapping("/geo/rebuild")
+    public Result rebuildGeo(@RequestParam(value = "typeId", required = false) Integer typeId) {
+        return shopService.rebuildGeoIndex(typeId);
+    }
 }

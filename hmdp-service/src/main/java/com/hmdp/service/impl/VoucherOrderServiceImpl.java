@@ -265,6 +265,20 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         return Result.ok(pager.getRecords());
     }
 
+    @Override
+    public Result queryMyOrdersDetail(Integer current, Integer size) {
+        Long userId = UserHolder.getUser().getId();
+        int page = (current == null || current < 1) ? 1 : current;
+        int limit = (size == null || size < 1) ? SystemConstants.MAX_PAGE_SIZE : Math.min(size, SystemConstants.MAX_PAGE_SIZE);
+        int offset = (page - 1) * limit;
+        java.util.List<com.hmdp.dto.VoucherOrderDetailDTO> rows = getBaseMapper()
+                .queryMyOrderDetails(userId, offset, limit);
+        if (rows == null) {
+            rows = java.util.Collections.emptyList();
+        }
+        return Result.ok(rows);
+    }
+
     private void writeImmediateStatus(String statusKey, String reqId, Long voucherId, Long userId, String reason, Long orderId, Integer count) {
         java.util.Map<String, Object> payload = new java.util.HashMap<>();
         payload.put("status", "FAILED");

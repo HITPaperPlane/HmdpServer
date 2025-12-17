@@ -1,457 +1,162 @@
-# 项目待办事项 (TODO List)
-
-## 1. 核心业务重构：社交功能 (Social Feed)
-
-### 🔴 架构修正：发布功能迁移 (Refactor)
-- **当前问题**：发布探店笔记 (`saveBlog`) 的完整 UI 交互主要集成在 **商户端** (`MerchantContent.vue`)。虽然用户端 (`Blogs.vue`) 也有发布按钮，但逻辑割裂，且“我的笔记”列表仅在商户端可见。
-- **重构目标**：探店笔记是 **C端用户 (User)** 的核心社交资产，而非商户的管理工具。
-- **执行计划**：
-  - [ ] **UI 迁移**：将 `MerchantContent.vue` 中的“发布笔记”组件完整迁移/复用到用户端（建议新建 `PublishBlog.vue` 或在 `Blogs.vue` 中优化弹窗）。
-  - [ ] **入口调整**：在 `Profile.vue` (个人中心) 增加“我发布的笔记”入口，调用 `GET /blog/of/me` (目前该接口逻辑正确，但前端无入口)。
-  - [ ] **商户端清理**：移除或隐藏商户端的普通笔记发布功能，除非将其重新定义为“官方公告/营销动态”。
-  - [ ] **商户的个人信息**：商户的个人信息也要支持增删改查啊，另外现在别管是商户还是普通用户，我都看不到头像
-
-### 🟠 性能优化：关注流查询 (Feed Stream)
-- **当前问题 (严重)**：`BlogServiceImpl.queryBlogOfFollow` 方法中存在严重的 **N+1 查询问题**。
-  - 代码逻辑：先查 Redis 获取 Feed ID 列表，然后 **for 循环** 遍历每个 Blog，在循环内逐次调用 `queryBlogUser` (查 DB) 和 `isBlogLiked` (查 Redis)。
-  - 当前问题：严重的 N+1 问题在 queryBlogOfFollow 方法中，您目前的实现逻辑是：先从 Redis 拿到一页 BlogID 列表（比如 10 个），然后 For 循环 遍历这 10 个 ID。
-    ``` java
-    // BlogServiceImpl.java L225
-    for (Blog blog : blogs) {
-        // 5.1 查询发布该blog的用户信息 (Inside: Select * from tb_user where id = ?)
-        queryBlogUser(blog); 
-        // 5.2 查询当前用户是否给该blog点过赞 (Inside: Redis ZSCORE)
-        isBlogLiked(blog);
-    }
-    ```
-    后果推演： 假设一页展示 10 条笔记：DB 查询次数：1 次查 Blogs 列表 + 10 次查 User (作者信息) + 10 次查 UserInfo (头像等) = 21 次 DB 交互。Redis 查询次数：1 次查 Feed ZSet + 10 次查 IsLike ZScore = 11 次 Redis 交互。
-
-  - 网络 IO：共计 32 次网络请求。这会造成巨大的网络延迟（RTT），导致 Feed 流加载缓慢，数据库连接池瞬间被占满。
-  - 对比：`queryHotBlog` (热榜查询) 中已经做了优秀的批量优化 (Map 缓存)。
-- **执行计划**：
-  - [ ] **批量查询改造**：参考 `queryHotBlog` 的实现，收集所有 `userId` 和 `blogId`，使用 `userService.listByIds()` 和 Pipeline 批量查询用户信息与点赞状态，然后在内存中组装。
-
-    - 收集 ID：遍历 blogs 列表，把所有作者的 userId 放入一个 Set<Long>。
-
-    - 批量查 DB：调用 userService.listByIds(userIds) -> SELECT * FROM tb_user WHERE id IN (...)。调用 userInfoService.listByIds(userIds)。一次 DB 交互 解决所有用户信息。
-
-    - Map 转换：将查询结果转为 Map<Long, User>，方便后续 O(1) 获取。
-
-    - Redis Pipeline (管道)：对于 10 次 isBlogLiked 查询，使用 Redis Pipeline 一次性打包发送，一次 Redis 交互 拿到所有结果。
-
-  - 优化后代码示例 (伪代码)：
-    ```java
-    // 1. 收集作者ID
-    Set<Long> userIds = blogs.stream().map(Blog::getUserId).collect(Collectors.toSet());
-
-    // 2. 批量查询用户信息 (DB) 并转为 Map
-    Map<Long, User> userMap = userService.listByIds(userIds).stream()
-        .collect(Collectors.toMap(User::getId, u -> u));
-    Map<Long, UserInfo> userInfoMap = userInfoService.listByIds(userIds).stream()
-        .collect(Collectors.toMap(UserInfo::getUserId, u -> u));
-
-    // 3. 批量查询点赞状态 (Redis Pipeline)
-    List<Object> isLikedResults = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-        for (Blog blog : blogs) {
-            String key = BLOG_LIKED_KEY + blog.getId();
-            // 这里的 connection.zScore 是异步的，不会立即返回
-            connection.zScore(key.getBytes(), currentUserId.toString().getBytes());
-        }
-        return null;
-    });
-
-    // 4. 内存组装 (纯内存操作，速度极快)
-    for (int i = 0; i < blogs.size(); i++) {
-        Blog blog = blogs.get(i);
-        // 填用户信息
-        if (userMap.containsKey(blog.getUserId())) {
-            blog.setName(userMap.get(blog.getUserId()).getNickName());
-            blog.setIcon(userInfoMap.get(blog.getUserId()).getIcon());
-        }
-        // 填点赞状态
-        Double score = (Double) isLikedResults.get(i);
-        blog.setIsLike(score != null);
-    }
-    ```
-效果：DB 查询降为 2-3 次，Redis 交互降为 2 次。性能提升一个数量级。
-
-### 🟡 代码修正：分页硬编码 (Hardcoding)
-- **当前问题**：在 `BlogServiceImpl.queryBlogOfFollow` 中，Redis 滚动分页查询的 count 被硬编码为 **2**。
-  - 代码：`reverseRangeByScoreWithScores(key, 0, max, offset, 2)`
-  - 影响：导致前端每次滚动只能加载 2 条数据，用户体验极差，且增加了网络交互次数。
-- **执行计划**：
-  - [ ] **参数标准化**：将硬编码的 `2` 修改为 `SystemConstants.MAX_PAGE_SIZE` (通常为 10)，保持与热榜分页一致。
-
-## 2. 架构升级：高并发支持 (High Concurrency)
-
-### 🔵 异步化：Feed 推送 (Push Mode)
-- **当前问题**：`saveBlog` 方法中，发布笔记后 **同步 (Synchronous)** 遍历所有粉丝进行 `ZADD` 推送。
-  - 风险：若某大 V 拥有 10 万粉丝，发布笔记将导致接口超时甚至阻塞线程。
-- **执行计划**：
-  - [ ] **引入消息队列**：利用 RabbitMQ (或 Redis List) 将“推送到收件箱”的动作异步化。发布接口仅保存 DB 即返回成功。
-  - [ ] 还需要再引入一个服务，专门消费消息队列的消息，然后推给用户的收件箱
-  - 具体实现比较复杂，见 feed流.md
-
-### 🔵 缓存一致性
-#### **当前问题：无效的兜底逻辑**
-
-您使用了 `CompletableFuture` 来并行查询，这很好。但是看您的异常处理代码：
-
-**现有代码分析 (`BlogServiceImpl.java`):**
-
-```java
-// BlogServiceImpl.java L78
-try {
-    // 获取异步结果
-    blog.setIsLike(likeFuture.join()); 
-} catch (CompletionException e) {
-    // ...日志...
-    // 兜底：同步查询
-    try {
-        isBlogLiked(blog); // <--- 问题在这里
-    } catch (Exception ignore) {}
-}
-```
-
-**逻辑漏洞：**
-
-  * `likeFuture` 内部执行的就是查询 Redis (`stringRedisTemplate...score`)。
-  * 如果 `likeFuture` 抛出异常，通常是因为 **Redis 挂了** 或者 **网络超时**。
-  * 在 `catch` 块中，您又调用了 `isBlogLiked(blog)`。
-  * **而 `isBlogLiked` 方法内部依然是查 Redis！**
-  * **结论**：如果 Redis 挂了，`likeFuture` 会死，`catch` 里的兜底也会死。这不仅没起到兜底作用，反而让用户请求多等待了一次超时的过程，甚至可能导致页面报错。
-
-#### **优化方案：Fail-Fast (快速失败) 与 核心数据优先**
-
-在微服务架构中，有一个原则：**非核心数据缺失，不应影响核心业务展示。**
-
-  * **核心数据**：Blog 的标题、内容、作者。如果没有这些，详情页没法看。
-  * **非核心数据**：当前用户是否点赞。如果获取失败，大不了显示“未点赞”，用户依然可以阅读文章。
-
-**重构思路：**
-
-1.  **区分轻重**：MySQL 的 Blog 数据必须查到。Redis 的点赞状态查不到就算了。
-2.  **静默失败 (Silent Fail)**：当 `likeFuture` 异常时，记录日志，然后默认 `isLike = false`，**不要**再去重试查 Redis。
-
-**优化后代码示例：**
-
-```java
-// 定义 Future
-CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
-    // ... 查 Redis ...
-}, taskExecutor).exceptionally(e -> {
-    // 【关键优化】如果 Redis 报错，直接返回 false，不要抛异常给主线程
-    log.warn("Redis点赞状态查询失败，降级为未点赞: {}", e.getMessage());
-    return false; 
-});
-
-// 获取结果
-try {
-    // 因为上面用了 exceptionally 吃掉了异常，这里 join 不会再爆错
-    blog.setIsLike(likeFuture.join());
-} catch (Exception e) {
-    // 即使还有万一，也默认 false
-    blog.setIsLike(false);
-}
-
-// 至于 User 和 UserInfo，如果 DB 挂了，那整个服务也不可用了，抛错是合理的。
-// 但如果是 Redis 挂了，用户应该依然能看到博客内容，只是看不到点赞状态。
-```
-
-## 3. 前端体验优化
-- [ ] **强制关联店铺逻辑**：`Blogs.vue` 中的发布逻辑强制要求 `shopId` (`submitDisabled` 检查了 `!compose.shopId`)。需确认产品逻辑：是否允许用户发布不关联店铺的纯生活动态？如果不允许，需在 UI 上给出更明确的引导。
-
-## 4. 实现全新升级的秒杀架构
-- 新方案太长了，见文件秒杀.md
-
-## 5. bug: 现在的代码把canal异常“吃掉”了
-现在的代码把异常“吃掉”了（Swallowed），没有正确地抛出给上层去触发重试机制。
-核心问题：handleEntries 方法中的 try-catch 范围过大
-
-### 新方案总结：Canal + 重试 + 死信兜底
-
-为了保证数据最终一致性，同时防止程序因单条异常数据陷入死循环，采用以下策略：
-
-1.  **正常流程**：拉取 Canal 消息 -\> 解析 -\> 操作 Redis -\> **ACK**。
-2.  **本地重试**：如果操作 Redis 抛出异常（如网络抖动），不要立即回滚，先在本地重试 N 次（防止频繁网络交互）。
-3.  **死信兜底**：如果重试 N 次后依然失败（如 Redis 持续宕机或代码逻辑 bug），将该消息（表名、ID、操作类型）发送到 **RabbitMQ 的异常队列**。
-4.  **强制 ACK**：只要消息成功发送到了 RabbitMQ，就对 Canal Server 执行 **ACK**。这样 Canal 游标可以继续后移，不会阻塞后续正常的缓存更新。
-5.  **后续处理**：由人工或另一个服务专门消费 RabbitMQ 的异常队列，进行补偿处理。
-
------
-
-### 第一步：修改 RabbitMQ 配置 (定义异常队列)
-
-在 `RabbitMQTopicConfig.java` 中增加一个专门用于存放 Canal 处理失败消息的队列。
-
-**文件：** `relay-service/src/main/java/com/hmdp/relay/config/RabbitMQTopicConfig.java`
-
-```java
-package com.hmdp.relay.config;
-
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.TopicExchange;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-public class RabbitMQTopicConfig {
-    // 原有的秒杀队列配置
-    public static final String QUEUE = "seckillQueue";
-    public static final String EXCHANGE = "seckillExchange";
-    public static final String ROUTINGKEY = "seckill.message";
-
-    // === 新增：Canal 异常处理队列配置 ===
-    public static final String CANAL_ERROR_QUEUE = "canal.error.queue";
-    public static final String CANAL_ERROR_ROUTING_KEY = "canal.error";
-
-    @Bean
-    public Queue queue(){
-        return new Queue(QUEUE, true);
-    }
-    @Bean
-    public TopicExchange topicExchange(){
-        return new TopicExchange(EXCHANGE, true, false);
-    }
-    @Bean
-    public Binding binding(){
-        return BindingBuilder.bind(queue()).to(topicExchange()).with(ROUTINGKEY);
-    }
-
-    // === 新增 Bean ===
-    @Bean
-    public Queue canalErrorQueue() {
-        return new Queue(CANAL_ERROR_QUEUE, true);
-    }
-
-    @Bean
-    public Binding canalErrorBinding() {
-        return BindingBuilder.bind(canalErrorQueue()).to(topicExchange()).with(CANAL_ERROR_ROUTING_KEY);
-    }
-}
-```
-
------
-
-### 第二步：重写 CanalSubscriber (引入重试与死信逻辑)
-
-这是核心修改。我们将逻辑分为“拉取循环”和“处理逻辑”，并引入 `RabbitTemplate`。
-
-**文件：** `relay-service/src/main/java/com/hmdp/relay/canal/CanalSubscriber.java`
-
-```java
-package com.hmdp.relay.canal;
-
-import com.alibaba.otter.canal.client.CanalConnector;
-import com.alibaba.otter.canal.client.CanalConnectors;
-import com.alibaba.otter.canal.protocol.CanalEntry;
-import com.alibaba.otter.canal.protocol.Message;
-import com.hmdp.relay.config.CanalProperties;
-import com.hmdp.relay.config.RabbitMQTopicConfig;
-import com.hmdp.relay.constants.RedisKeys;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
-import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-@Component
-@Slf4j
-@RequiredArgsConstructor
-public class CanalSubscriber {
-
-    private final CanalProperties canalProperties;
-    private final StringRedisTemplate redisTemplate;
-    private final RabbitTemplate rabbitTemplate; // 注入 RabbitTemplate
-    private final ExecutorService pool = Executors.newSingleThreadExecutor();
-
-    private static final int MAX_RETRY_TIMES = 3; // 最大本地重试次数
-
-    @PostConstruct
-    public void start() {
-        pool.submit(this::consumeLoop);
-    }
-
-    private void consumeLoop() {
-        CanalConnector connector = CanalConnectors.newSingleConnector(
-                new InetSocketAddress(canalProperties.getHost(), canalProperties.getPort()),
-                canalProperties.getDestination(),
-                canalProperties.getUsername(),
-                canalProperties.getPassword());
-        
-        while (true) {
-            try {
-                connector.connect();
-                connector.subscribe(canalProperties.getSubscribe());
-                connector.rollback(); // 连接后先回滚，防止上次未处理完的数据丢失
-
-                while (true) {
-                    // 1. 获取消息
-                    Message message = connector.getWithoutAck(canalProperties.getBatchSize());
-                    long batchId = message.getId();
-                    
-                    if (batchId == -1 || message.getEntries().isEmpty()) {
-                        TimeUnit.SECONDS.sleep(1);
-                        continue;
-                    }
-
-                    // 2. 处理消息 (包含重试和死信逻辑)
-                    boolean success = processBatch(message.getEntries());
-
-                    if (success) {
-                        // 3. 只有成功处理（或成功转入死信队列）才 ACK
-                        connector.ack(batchId);
-                    } else {
-                        // 4. 如果连死信队列都进不去，说明基础设施严重故障，回滚并休眠，等待下一次循环
-                        log.error("Serious failure: Unable to process or offload to MQ. Rolling back.");
-                        connector.rollback(); 
-                        TimeUnit.SECONDS.sleep(5); 
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Canal connection error, retrying...", e);
-                try {
-                    TimeUnit.SECONDS.sleep(3);
-                } catch (InterruptedException ignored) {}
-            } finally {
-                try {
-                    connector.disconnect();
-                } catch (Exception ignored) {}
-            }
-        }
-    }
-
-    /**
-     * 处理一批 Entry，返回 true 表示这批数据可以 ACK（无论是成功处理还是已转入死信）
-     */
-    private boolean processBatch(List<CanalEntry.Entry> entries) {
-        for (CanalEntry.Entry entry : entries) {
-            // 忽略事务开启/结束类型的 Entry
-            if (entry.getEntryType() != CanalEntry.EntryType.ROWDATA) {
-                continue;
-            }
-
-            // 尝试处理单条 Entry
-            boolean entryProcessed = handleEntryWithRetry(entry);
-            
-            // 如果某条关键消息处理彻底失败（也没进MQ），则整批回滚
-            if (!entryProcessed) {
-                return false; 
-            }
-        }
-        return true;
-    }
-
-    /**
-     * 带重试机制的单条处理逻辑
-     */
-    private boolean handleEntryWithRetry(CanalEntry.Entry entry) {
-        int retryCount = 0;
-        while (retryCount < MAX_RETRY_TIMES) {
-            try {
-                // 尝试解析并操作 Redis
-                parseAndInvalidateCache(entry);
-                return true; // 成功
-            } catch (Exception e) {
-                retryCount++;
-                log.warn("Process entry failed, retry {}/{}. Error: {}", retryCount, MAX_RETRY_TIMES, e.getMessage());
-                try {
-                    TimeUnit.MILLISECONDS.sleep(500); // 稍微停顿
-                } catch (InterruptedException ignored) {}
-            }
-        }
-
-        // 重试耗尽，发送到死信队列
-        return sendToErrorQueue(entry);
-    }
-
-    private void parseAndInvalidateCache(CanalEntry.Entry entry) throws Exception {
-        CanalEntry.RowChange rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
-        String tableName = entry.getHeader().getTableName();
-        CanalEntry.EventType eventType = rowChange.getEventType();
-
-        // 仅关注增删改
-        if (eventType == CanalEntry.EventType.INSERT || eventType == CanalEntry.EventType.UPDATE || eventType == CanalEntry.EventType.DELETE) {
-            for (CanalEntry.RowData rowData : rowChange.getRowDatasList()) {
-                // 获取 ID (删除操作取 before，其他取 after)
-                String id = extractId(rowData);
-                if (id != null) {
-                    if ("tb_shop".equalsIgnoreCase(tableName)) {
-                        redisTemplate.delete(RedisKeys.CACHE_SHOP_KEY + id);
-                    } else if ("tb_blog".equalsIgnoreCase(tableName)) {
-                        redisTemplate.delete(RedisKeys.CACHE_BLOG_KEY + id);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * 发送异常消息到 RabbitMQ
-     */
-    private boolean sendToErrorQueue(CanalEntry.Entry entry) {
-        try {
-            String tableName = entry.getHeader().getTableName();
-            // 这里简单封装一个 Map 或者自定义对象发送，包含足够人工排查的信息
-            Map<String, Object> errorMsg = new HashMap<>();
-            errorMsg.put("tableName", tableName);
-            errorMsg.put("entryType", entry.getEntryType().name());
-            errorMsg.put("logfileName", entry.getHeader().getLogfileName());
-            errorMsg.put("logfileOffset", entry.getHeader().getLogfileOffset());
-            errorMsg.put("time", System.currentTimeMillis());
-            
-            // 发送到我们在配置里定义的交换机和 RoutingKey
-            rabbitTemplate.convertAndSend(RabbitMQTopicConfig.EXCHANGE, RabbitMQTopicConfig.CANAL_ERROR_ROUTING_KEY, errorMsg);
-            
-            log.error("Message processing failed after retries. Sent to DLQ: {}", errorMsg);
-            return true; // 发送 MQ 成功，视为本条消息已处理（虽然是降级处理）
-        } catch (Exception e) {
-            log.error("FATAL: Failed to send message to DLQ!", e);
-            return false; // 发送 MQ 也失败，必须回滚 Canal
-        }
-    }
-
-    private String extractId(CanalEntry.RowData rowData) {
-        // 优先从 afterColumns 找主键
-        List<CanalEntry.Column> columns = rowData.getAfterColumnsList();
-        if (columns == null || columns.isEmpty()) {
-            // 如果是 DELETE 操作，after 为空，取 before
-            columns = rowData.getBeforeColumnsList();
-        }
-        
-        for (CanalEntry.Column c : columns) {
-            if (c.getIsKey()) {
-                return c.getValue();
-            }
-        }
-        return null;
-    }
-}
-```
-
-### 方案分析
-
-1.  **安全性**：
-
-      * 旧代码：异常直接吞掉 -\> Redis 脏数据。
-      * 新代码：异常 -\> 本地重试 3 次 -\> 发送 MQ 留痕 -\> 人工介入。最大程度保证了系统不会因为一条坏数据卡死，也不会悄无声息地丢数据。
-
-2.  **兜底逻辑**：
-
-      * `sendToErrorQueue` 如果返回 `true`，说明虽然 Redis 删除失败了，但我们要么记录下来了，后续可以写个脚本消费这个队列去补删 Redis，所以 Canal 可以放心地 ACK。
-      * 只有当 Redis 挂了 **且** RabbitMQ 也挂了的时候，才会返回 `false`，触发 Canal 的 `rollback`，这是最后的防线。
-
-3.  **ID 提取优化**：
-
-      * 原代码提取 ID 的逻辑有点冗余，我稍微优化了一下 `extractId`，针对 `DELETE` 事件（`AfterColumns` 为空）做了兼容处理。
+# TODO（下一阶段：前端体验 + 数据一致性 + 运维可控）
+
+> 说明：本文件记录“尚未做/需要确认/需要补强”的事项，按优先级从高到低。  
+> 已完成的核心链路（秒杀三种限购、Feed outbox→MQ→写收件箱、店铺创建者权限、商家券页重构、管理员审核预热秒杀券）不再重复列出。
+>
+> 2025-12-17：本文件所列项已全部落地；回归/压测记录见 `docx/test/manual_regression_2025-12-17_v2.md`。
+
+---
+
+## P0 - 用户侧体验（必须）
+
+### 1) 我的关注（Followings）页面
+- [x] 前端：在用户侧增加“我的关注”入口（建议放在 `Profile.vue` 或侧边栏）
+- [x] 前端：新增 `MyFollows.vue`（或 `Followings.vue`）
+  - 展示：关注的用户列表（头像、昵称、角色 Tag：商家/普通用户/管理员）
+  - 点击某人进入其主页/笔记列表（复用 `GET /blog/of/user?id=<uid>`）
+- [x] 后端：补充接口 `GET /follow/of/me`
+  - 返回字段建议：`userId/nickName/icon/role/introduce`（一次性返回，避免前端 N+1）
+  - 可选：返回 `followTime` 或“最近发帖时间”用于排序
+
+### 2) 作者主页/作者笔记列表
+- [x] 前端：新增作者页（例如 `/users/:id`）
+  - 头部展示用户信息（`GET /user/{id}`）
+  - 下方展示其笔记列表（`GET /blog/of/user?id=<id>&current=1...`）
+  - 增加关注/取关按钮（复用 `/follow/{id}/{isFollow}`）
+
+### 3) 发布笔记按钮位置
+- [x] 前端：把 `/blogs` 页的“发布笔记”按钮向左移动（布局对齐标题区域，不要贴右边缘）
+  - 同时确认移动端下按钮不遮挡内容、不溢出
+
+### 4) 首页城市选择 → 经纬度 → 附近模式（触发 GEO 查询）
+- [x] 前端：移除首页写死的“城市：上海”，改为可选城市（下拉/弹窗）
+- [x] 前端：建立 `city -> (lon,lat)` 映射（先做静态映射；后续如需更精准再接入地理编码服务）
+  - 注意：当前样例店铺坐标更接近杭州（120.x,30.x），若选择上海（121.x,31.x）会导致“附近 5km 内无店铺”
+- [x] 前端：在“按类型”加载店铺时，如果存在城市坐标，则请求：
+  - `/shop/of/type?typeId=<id>&current=<p>&x=<lon>&y=<lat>`（后端会走 Redis GEO 附近查询分支）
+- [x] 前端：增加一个显式开关（建议）
+  - `按类型（不按距离）`：不带 `x/y`（保证有数据）
+  - `附近（按距离）`：带 `x/y`（按距离排序）
+- [x] 后端/运维：补一条“GEO 索引重建”手段（一次性/可重复）
+  - 现状：`shop:geo:{typeId}` 只在店铺新建/更新时写入（见 `hmdp-service/.../ShopServiceImpl.saveShop/update`），历史数据导入 DB 后不会自动出现在 GEO
+  - 建议：提供管理端接口或脚本，把 `tb_shop` 全量 `GEOADD` 到对应 `shop:geo:{typeId}`，避免“附近模式”空结果/排序异常
+
+### 5) 订单页美化（并提升信息密度）
+- [x] 前端：重写 `Orders.vue` UI（卡片化/分组/空态/加载态/错误态）
+- [x] 后端/前端（二选一方案）：
+  - 方案 A（推荐）：新增 `GET /voucher-order/my/detail` 返回 OrderVO（已 join voucher/shop）
+  - 方案 B：前端拿 `/voucher-order/my` 后，批量请求 voucher/shop 信息（需要新增“按 id 批量查券/店铺”的接口，否则会 N+1）
+- [x] UI 信息建议：订单号、券标题、店铺名、数量、下单时间、限购类型（1/2/3）、状态（PENDING/SUCCESS/FAILED 的排队状态可选展示）
+
+---
+
+## P0 - 秒杀“审核预热”闭环（必须）
+
+### 6) 秒杀券：商家提交 → 管理员审核预热 → 用户可见/可抢
+- [x] 前端：管理员端在券列表中更直观地展示“待预热/已预热”状态（已加按钮，但文案/视觉可再优化）
+- [x] 前端：商家端明确提示“秒杀券需审核预热后才会出现在用户端”
+- [x] 后端：为“秒杀券状态”定义更清晰枚举/文档（`preheat_status`：0草稿/1预热中/2已预热）
+- [x] 文档：在 `FRONTEND_USAGE.md` 保持点击路径与真实行为一致（已更新，但后续 UI 变更要同步）
+
+---
+
+## P1 - Feed 流一致性与读扩散（性能/可用性）
+
+### 7) “刷新” vs “强制加载更多”的差异化语义（需要按 docx/feed流.md 落地）
+- [x] 前端：关注流新增两个动作入口
+  - `刷新`：拉最新（Smart Pull），用于修复“最新丢失”
+  - `强制加载更多`：触发更强的回源/回填，用于修复“中间空洞/Redis 不完整”
+- [x] 后端：为 `/blog/of/follow` 增加参数（示例）
+  - `?refresh=true`：仅做增量一致性检查（低成本）
+  - `?force=true`：允许在 Redis 非空时也触发 DB 回源并回填（高成本）
+- [x] 后端：补齐“Redis 不为空但缺数据”的兜底逻辑（目前只有 zset 为空才回源）
+
+### 8) 店铺列表“回源回填/读扩散”（按类型列表缓存补强）
+- [x] 现状（已落地）：无 `x/y` 时走 `cache:shop:zset:{typeId}`（ZSET，score=update_time）缓存 Top-N 最新店铺
+  - 读取：按 `current` 计算 `start/end`，`ZREVRANGE` 取一页 shopId，再批量查 DB
+  - 深分页：start>=200 直接回源 DB（不缓存回填）
+- [x] 风险点（需要对照文档/需求确认）：
+  - 页序稳定性：回源补齐时“写入列表”的方式可能影响全局顺序，导致不同页读到的内容不稳定
+  - 深分页：当前列表缓存只保留 Top-N（例如 200），深页必然回源 DB（可接受但需明确）
+  - 并发一致性：店铺更新会把该店铺 ID 提到列表前方，分页视图会变化（是否符合预期需要明确）
+- [x] 目标：明确“按类型分页”的一致性语义（稳定分页 vs 近实时分页），并据此选择一种实现
+  - 方案 A：只缓存 Top-N 最新（分页不保证稳定），深页直接 DB，不做“补齐回填”
+  - 方案 B：改用 ZSET（score=update_time）来做全局分页（稳定、可回填、易维护）
+  - 方案 C：按页缓存（`cache:shop:page:{typeId}:{page}`），TTL 短、回源回填更精确
+
+### 9) 联合索引（文档要求）
+- [x] DB：按 `docx/feed流.md` 增加索引
+  - `tb_blog`：`INDEX idx_user_time (user_id, create_time)`
+  - `tb_follow`：建议至少增加
+    - `INDEX idx_user_follow (user_id, follow_user_id)`
+    - `INDEX idx_follow_user (follow_user_id, user_id)`（用于查粉丝分页）
+
+---
+
+## P1 - 秒杀 reqId 的前端可靠性（体验与可追踪性）
+
+### 10) reqId 存储策略（针对“一人多单/累计限购”）
+- [x] 评审：目前 reqId 仅存在 JS 内存，页面刷新会丢，用户无法继续轮询状态
+- [x] 前端建议：
+  - 用 `sessionStorage` 存“待确认的 reqId”（按 `voucherId` 分桶），设置 TTL（如 30 分钟）
+  - 订单确认 `SUCCESS/FAILED` 后清理对应 reqId
+- [x] 说明：不建议用 Cookie
+  - Cookie 会随请求发送，增加无意义流量且更难做安全隔离（非 HttpOnly Cookie 也不安全）
+
+---
+
+## P1 - RabbitMQ 持久化与运维操作（必须清晰）
+
+### 11) 当前 RabbitMQ 持久化现状（115.190.193.236）
+- [x] 已确认（现状记录，不需要再改代码）：
+  - RabbitMQ：3.9.27
+  - 队列 durable=true：`seckillQueue`、`feed.publish.queue`、`feed.batch.queue`、`canal.error.queue`
+  - 交换机 durable=true：`seckillExchange`、`feedExchange`
+  - 数据目录：`/var/lib/rabbitmq/mnesia/rabbit@<hostname>/`
+- [x] 待补强（建议）：
+  - 明确设置 Publisher 的 `delivery_mode=2(PERSISTENT)`（Spring 通常默认是 persistent，但建议显式配置）
+    - 方案：配置 `spring.rabbitmq.template.delivery-mode=persistent` 或发消息时显式设置 message properties
+
+### 12) RabbitMQ 导出/清理操作（写进运维文档/脚本）
+- [x] 导出“定义”（交换机/队列/绑定）：
+  - `rabbitmqctl export_definitions /tmp/definitions.json`
+- [x] 导入“定义”：
+  - `rabbitmqctl import_definitions /tmp/definitions.json`
+- [x] 清空某个队列（不删定义，只清消息）：
+  - `rabbitmqctl purge_queue seckillQueue`
+  - `rabbitmqctl purge_queue feed.publish.queue`
+- [x] 删除队列（会丢定义）：
+  - `rabbitmqctl delete_queue seckillQueue`
+- [x] 备份“持久化数据目录”（包含消息存储，需停机）：
+  - `systemctl stop rabbitmq-server`
+  - `tar -czf /tmp/rabbitmq-mnesia.tar.gz -C /var/lib/rabbitmq/mnesia rabbit@<hostname>`
+  - `systemctl start rabbitmq-server`
+- [x] 清空整套持久化（危险：会删 vhost/users/queues 等）：
+  - `rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl start_app`
+
+---
+
+## P2 - 数据库外键约束（需要先做数据清洗与字段语义统一）
+
+### 13) 外键（FK）与“0 哨兵值”的冲突
+- [x] 现状：部分字段用 `0` 表示“无归属/可选”（例如 `shop.created_by=0`、`blog.shop_id=0`）
+- [x] 结论：要加 FK，建议把“可选字段”改成 `NULL`，并做一次数据迁移：
+  - 迁移：把历史 `0` 更新为 `NULL`
+  - 字段：改为 `NULL` 可空
+  - FK：使用 `ON DELETE SET NULL` 或限制删除
+
+### 14) 建议加的 FK（按业务语义）
+- [x] `tb_shop.created_by` → `tb_user.id`
+- [x] `tb_voucher.shop_id` → `tb_shop.id`
+- [x] `tb_seckill_voucher.voucher_id` → `tb_voucher.id`
+- [x] `tb_voucher_order.voucher_id` → `tb_voucher.id`
+- [x] `tb_blog.user_id` → `tb_user.id`
+- [x] `tb_follow.user_id`/`tb_follow.follow_user_id` → `tb_user.id`
+
+---
+
+## P2 - 文档与说明（持续维护）
+- [x] 把“刷新 vs 强制加载更多”的设计与接口参数写入 `FRONTEND_USAGE.md`
+- [x] 补充一份 `docx/ops/rabbitmq.md`（可选）：记录 MQ 导出/清理/备份操作
+- [x] 补充一份 `docx/ops/cache.md`（可选）：梳理“穿透/击穿/雪崩”的现用策略与各业务的选型（Shop/Feed/秒杀）
+- [x] 补充一份 `docx/ops/relay.md`（可选）：记录 relay-service 的线程模型（多线程 outbox 搬运 + 单线程 canal 订阅）与关键 Redis Key/Exchange/Queue

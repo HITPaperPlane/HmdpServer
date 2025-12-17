@@ -37,4 +37,10 @@ public class FollowController {
     public Result followCommons(@PathVariable Long id){
         return followService.followCommons(id);
     }
+
+    // 查询当前用户关注列表（用于“我的关注”页面）
+    @GetMapping("/of/me")
+    public Result myFollows() {
+        return followService.queryMyFollows();
+    }
 }

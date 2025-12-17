@@ -4,9 +4,9 @@
       <div class="hero-left">
         <div class="hero-title">探店笔记</div>
         <div class="hero-sub">支持富文本（HTML）排版、图片上传、点赞与关注流</div>
-      </div>
-      <div class="hero-actions">
-        <van-button type="primary" size="small" @click="openCompose">发布笔记</van-button>
+        <div class="hero-actions">
+          <van-button type="primary" size="small" @click="openCompose">发布笔记</van-button>
+        </div>
       </div>
     </section>
 
@@ -70,54 +70,61 @@
             </div>
           </div>
 
-          <van-list
-              v-else
-              v-model:loading="feed.loading"
-              :finished="feed.finished"
-              finished-text="没有更多了"
-              @load="loadFeed"
-          >
-            <div class="blog-grid">
-              <article v-for="b in feed.list" :key="b.id" class="blog-card">
-                <div class="blog-head">
-                  <div class="author">
-                    <van-image round width="36" height="36" :src="b._authorAvatar || defaultAvatar" />
-                    <div class="author-meta">
-                      <div class="author-name">{{ b.name || '匿名用户' }}</div>
-                      <div class="muted">店铺 {{ b.shopId }} · {{ b.createTime || '' }}</div>
-                    </div>
-                  </div>
-                  <van-button size="small" plain type="primary" @click="goDetail(b.id)">详情</van-button>
-                </div>
-
-                <div class="blog-title">{{ b.title }}</div>
-
-                <div v-if="b._imgs.length" class="img-row">
-                  <van-image
-                      v-for="(img, idx) in b._imgs.slice(0, 3)"
-                      :key="idx"
-                      :src="img"
-                      fit="cover"
-                      radius="10"
-                      class="thumb"
-                      @click="goDetail(b.id)"
-                  />
-                  <div v-if="b._imgs.length > 3" class="more">+{{ b._imgs.length - 3 }}</div>
-                </div>
-
-                <div class="blog-snippet" v-html="b._snippet"></div>
-
-                <div class="blog-actions">
-                  <van-button size="small" plain type="primary" @click="toggleLike(b)">
-                    {{ b.isLike ? '已赞' : '点赞' }} {{ b.liked || 0 }}
-                  </van-button>
-                  <van-button size="small" plain type="default" :disabled="b.userId === session.profile.id" @click="toggleFollow(b)">
-                    {{ b._following ? '已关注' : '关注作者' }}
-                  </van-button>
-                </div>
-              </article>
+          <div v-else>
+            <div class="feed-toolbar">
+              <van-button size="small" plain type="primary" :disabled="feed.loading" @click="refreshFeed">刷新</van-button>
+              <van-button size="small" plain type="danger" :disabled="feed.loading" @click="forceBackfillFeed">强制加载更多</van-button>
+              <div class="muted" style="margin-left:auto;">刷新=低成本补最新；强制=高成本回源回填</div>
             </div>
-          </van-list>
+
+            <van-list
+                v-model:loading="feed.loading"
+                :finished="feed.finished"
+                finished-text="没有更多了"
+                @load="loadFeed"
+            >
+              <div class="blog-grid">
+                <article v-for="b in feed.list" :key="b.id" class="blog-card">
+                  <div class="blog-head">
+                    <div class="author" @click="openUser(b.userId)">
+                      <van-image round width="36" height="36" :src="b._authorAvatar || defaultAvatar" />
+                      <div class="author-meta">
+                        <div class="author-name">{{ b.name || '匿名用户' }}</div>
+                        <div class="muted">店铺 {{ b.shopId }} · {{ b.createTime || '' }}</div>
+                      </div>
+                    </div>
+                    <van-button size="small" plain type="primary" @click="goDetail(b.id)">详情</van-button>
+                  </div>
+
+                  <div class="blog-title">{{ b.title }}</div>
+
+                  <div v-if="b._imgs.length" class="img-row">
+                    <van-image
+                        v-for="(img, idx) in b._imgs.slice(0, 3)"
+                        :key="idx"
+                        :src="img"
+                        fit="cover"
+                        radius="10"
+                        class="thumb"
+                        @click="goDetail(b.id)"
+                    />
+                    <div v-if="b._imgs.length > 3" class="more">+{{ b._imgs.length - 3 }}</div>
+                  </div>
+
+                  <div class="blog-snippet" v-html="b._snippet"></div>
+
+                  <div class="blog-actions">
+                    <van-button size="small" plain type="primary" @click="toggleLike(b)">
+                      {{ b.isLike ? '已赞' : '点赞' }} {{ b.liked || 0 }}
+                    </van-button>
+                    <van-button size="small" plain type="default" :disabled="b.userId === session.profile.id" @click="toggleFollow(b)">
+                      {{ b._following ? '已关注' : '关注作者' }}
+                    </van-button>
+                  </div>
+                </article>
+              </div>
+            </van-list>
+          </div>
         </van-tab>
       </van-tabs>
     </section>
@@ -293,12 +300,67 @@ async function loadFeed() {
   }
 }
 
+async function refreshFeed() {
+  if (!session.token) return;
+  feed.list = [];
+  feed.max = Date.now();
+  feed.offset = 0;
+  feed.finished = false;
+  feed.loading = true;
+  try {
+    const data = await request(`/blog/of/follow?lastId=${feed.max}&offset=0&refresh=true`, { token: session.token });
+    const rows = Array.isArray(data?.list) ? data.list : [];
+    if (rows.length === 0) {
+      feed.finished = true;
+      return;
+    }
+    feed.list.push(...rows.map(normalizeBlog));
+    await preloadFollow(rows);
+    feed.max = data.minTime;
+    feed.offset = data.offset;
+  } catch {
+    feed.finished = true;
+  } finally {
+    feed.loading = false;
+  }
+}
+
+async function forceBackfillFeed() {
+  if (!session.token) return;
+  feed.list = [];
+  feed.max = Date.now();
+  feed.offset = 0;
+  feed.finished = false;
+  feed.loading = true;
+  try {
+    const data = await request(`/blog/of/follow?lastId=${feed.max}&offset=0&force=true`, { token: session.token });
+    const rows = Array.isArray(data?.list) ? data.list : [];
+    if (rows.length === 0) {
+      feed.finished = true;
+      return;
+    }
+    feed.list.push(...rows.map(normalizeBlog));
+    await preloadFollow(rows);
+    feed.max = data.minTime;
+    feed.offset = data.offset;
+  } catch {
+    feed.finished = true;
+  } finally {
+    feed.loading = false;
+  }
+}
+
 function openCompose() {
   compose.show = true;
 }
 
 function goDetail(id) {
   router.push(`/blogs/${id}`);
+}
+
+function openUser(id) {
+  if (!id) return;
+  router.push(`/users/${id}`);
 }
 
 async function toggleLike(b) {
@@ -449,8 +511,19 @@ onMounted(async () => {
   opacity: 0.92;
 }
 
+.hero-actions {
+  margin-top: 12px;
+}
+
 .card {
   padding: 14px;
+}
+
+.feed-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 2px;
 }
 
 .blog-grid {

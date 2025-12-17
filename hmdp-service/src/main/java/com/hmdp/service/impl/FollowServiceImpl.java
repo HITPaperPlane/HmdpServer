@@ -1,12 +1,15 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hmdp.dto.FollowUserDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.Follow;
+import com.hmdp.entity.User;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.FollowMapper;
 import com.hmdp.service.IFollowService;
@@ -21,8 +24,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
@@ -142,6 +149,58 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             dto.setIcon(iconMap.get(dto.getId()));
         }
         return Result.ok(userDTOS);
+    }
+
+    @Override
+    public Result queryMyFollows() {
+        UserDTO current = UserHolder.getUser();
+        if (current == null || current.getId() == null) {
+            return Result.fail("未登录");
+        }
+        Long userId = current.getId();
+        List<Follow> follows = query()
+                .eq("user_id", userId)
+                .orderByDesc("create_time")
+                .list();
+        if (follows == null || follows.isEmpty()) {
+            return Result.ok(Collections.emptyList());
+        }
+        List<Long> followIds = new ArrayList<>();
+        HashSet<Long> seen = new HashSet<>();
+        for (Follow f : follows) {
+            if (f == null || f.getFollowUserId() == null) {
+                continue;
+            }
+            if (seen.add(f.getFollowUserId())) {
+                followIds.add(f.getFollowUserId());
+            }
+        }
+        if (followIds.isEmpty()) {
+            return Result.ok(Collections.emptyList());
+        }
+        Map<Long, User> userMap = userService.listByIds(followIds).stream()
+                .filter(u -> u != null && u.getId() != null)
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a, HashMap::new));
+        Map<Long, UserInfo> infoMap = userInfoService.listByIds(followIds).stream()
+                .filter(ui -> ui != null && ui.getUserId() != null)
+                .collect(Collectors.toMap(UserInfo::getUserId, ui -> ui, (a, b) -> a, HashMap::new));
+
+        List<FollowUserDTO> result = new ArrayList<>(followIds.size());
+        for (Long fid : followIds) {
+            User u = userMap.get(fid);
+            if (u == null) {
+                continue;
+            }
+            UserInfo info = infoMap.get(fid);
+            FollowUserDTO dto = new FollowUserDTO();
+            dto.setUserId(u.getId());
+            dto.setNickName(StrUtil.blankToDefault(u.getNickName(), ""));
+            dto.setRole(StrUtil.blankToDefault(u.getRole(), "USER"));
+            dto.setIcon(info != null ? StrUtil.blankToDefault(info.getIcon(), "") : "");
+            dto.setIntroduce(info != null ? StrUtil.blankToDefault(info.getIntroduce(), "") : "");
+            result.add(dto);
+        }
+        return Result.ok(result);
     }
 
     private void preloadRecentBlogs(Long followerId, Long followUserId) {

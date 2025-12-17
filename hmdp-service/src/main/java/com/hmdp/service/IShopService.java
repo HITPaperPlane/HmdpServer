@@ -23,4 +23,11 @@ public interface IShopService extends IService<Shop> {
     Result saveShop(Shop shop);
 
     Result queryMyShops(String name);
+
+    /**
+     * 管理端一键重建 GEO 索引（避免 Redis 丢失或历史数据导入导致“附近无店铺”）
+     *
+     * @param typeId 指定类型（可选）；为空则全量按 typeId 重建
+     */
+    Result rebuildGeoIndex(Integer typeId);
 }

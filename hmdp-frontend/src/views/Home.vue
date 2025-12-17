@@ -41,7 +41,7 @@
         </div>
         <div class="metric">
           <div class="metric-label">城市</div>
-          <div class="metric-value">上海</div>
+          <div class="metric-value clickable" @click="openCityPicker">{{ city.text }}</div>
         </div>
       </div>
     </section>
@@ -57,6 +57,10 @@
             </div>
           </div>
           <div class="row">
+            <template v-if="mode === 'type'">
+              <van-button size="small" plain :type="nearby ? 'default' : 'primary'" @click="setNearby(false)">按类型</van-button>
+              <van-button size="small" plain :type="nearby ? 'primary' : 'default'" @click="setNearby(true)">附近</van-button>
+            </template>
             <van-button size="small" plain type="primary" @click="reload">刷新</van-button>
           </div>
         </div>
@@ -101,11 +105,20 @@
         </div>
       </div>
     </section>
+
+    <van-popup v-model:show="cityPicker.show" position="bottom" round>
+      <van-picker
+          title="选择城市"
+          :columns="cityPicker.columns"
+          @confirm="onPickCity"
+          @cancel="cityPicker.show=false"
+      />
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { request } from '../api/http';
 import { splitImages } from '../utils/media';
@@ -122,6 +135,21 @@ const types = ref([]);
 const activeTypeId = ref(null);
 const keyword = ref('');
 const mode = ref('type'); // type | search
+const nearby = ref(false);
+
+const CITY_OPTIONS = [
+  { text: '杭州', value: 'hangzhou', lon: 120.1551, lat: 30.2741 },
+  { text: '上海', value: 'shanghai', lon: 121.4737, lat: 31.2304 },
+  { text: '北京', value: 'beijing', lon: 116.4074, lat: 39.9042 },
+  { text: '深圳', value: 'shenzhen', lon: 114.0579, lat: 22.5431 },
+  { text: '广州', value: 'guangzhou', lon: 113.2644, lat: 23.1291 },
+  { text: '成都', value: 'chengdu', lon: 104.0665, lat: 30.5723 }
+];
+const city = ref(CITY_OPTIONS[0]);
+const cityPicker = reactive({
+  show: false,
+  columns: CITY_OPTIONS.map(c => ({ text: c.text, value: c.value }))
+});
 
 const shops = ref([]);
 const current = ref(1);
@@ -130,7 +158,10 @@ const finished = ref(false);
 const inFlight = ref(false);
 const lastError = ref('');
 
-const modeLabel = computed(() => (mode.value === 'search' ? '搜索' : '按类型'));
+const modeLabel = computed(() => {
+  if (mode.value === 'search') return '搜索';
+  return nearby.value ? '附近(按距离)' : '按类型';
+});
 const currentTypeName = computed(() => types.value.find(t => t.id === activeTypeId.value)?.name || '-');
 
 function normalizeShop(s) {
@@ -154,6 +185,42 @@ function resetList() {
   finished.value = false;
 }
 
+function setNearby(val) {
+  nearby.value = Boolean(val);
+  resetList();
+  loadMore();
+}
+
+function openCityPicker() {
+  cityPicker.show = true;
+}
+
+function onPickCity(value) {
+  const picked = CITY_OPTIONS.find(c => c.value === value);
+  if (picked) {
+    city.value = picked;
+    try {
+      localStorage.setItem('hmdp-city', picked.value);
+    } catch {
+      // ignore
+    }
+    resetList();
+    loadMore();
+  }
+  cityPicker.show = false;
+}
+
+function loadStoredCity() {
+  try {
+    const saved = localStorage.getItem('hmdp-city');
+    if (!saved) return;
+    const picked = CITY_OPTIONS.find(c => c.value === saved);
+    if (picked) city.value = picked;
+  } catch {
+    // ignore
+  }
+}
+
 async function loadMore() {
   if (finished.value || inFlight.value) return;
   // 等待分类加载完成再触发；van-list 会先把 loading 置为 true，再触发 @load
@@ -175,7 +242,12 @@ async function loadMore() {
         finished.value = true;
         return;
       }
-      list = await request(`/shop/of/type?typeId=${activeTypeId.value}&current=${current.value}`);
+      const q = new URLSearchParams({ typeId: String(activeTypeId.value), current: String(current.value) });
+      if (nearby.value && city.value?.lon != null && city.value?.lat != null) {
+        q.set('x', String(city.value.lon));
+        q.set('y', String(city.value.lat));
+      }
+      list = await request(`/shop/of/type?${q.toString()}`);
     }
     const rows =
         Array.isArray(list) ? list :
@@ -197,7 +269,9 @@ async function loadMore() {
         finished: finished.value,
         page: current.value,
         mode: mode.value,
-        typeId: activeTypeId.value
+        typeId: activeTypeId.value,
+        nearby: nearby.value,
+        city: city.value?.text
       };
     }
     current.value += 1;
@@ -245,6 +319,7 @@ function openShop(shop) {
 
 onMounted(async () => {
   log('mounted');
+  loadStoredCity();
   if (debug) {
     window.__homeShops = shops.value;
     window.__homeLoadMore = loadMore;
@@ -354,6 +429,10 @@ onMounted(async () => {
   margin-top: 6px;
   font-size: 18px;
   font-weight: 800;
+}
+
+.clickable {
+  cursor: pointer;
 }
 
 .content {

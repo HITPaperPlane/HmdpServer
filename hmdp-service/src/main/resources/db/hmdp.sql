@@ -23,7 +23,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `tb_blog`;
 CREATE TABLE `tb_blog`  (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `shop_id` bigint(20) NOT NULL COMMENT '商户id',
+  `shop_id` bigint(20) UNSIGNED NULL DEFAULT NULL COMMENT '商户id（可为空）',
   `user_id` bigint(20) UNSIGNED NOT NULL COMMENT '用户id',
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '标题',
   `images` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '探店的照片，最多9张，多张以\",\"隔开',
@@ -32,7 +32,8 @@ CREATE TABLE `tb_blog`  (
   `comments` int(8) UNSIGNED NULL DEFAULT NULL COMMENT '评论数量',
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_user_time` (`user_id`, `create_time`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 23 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
@@ -74,7 +75,9 @@ CREATE TABLE `tb_follow`  (
   `user_id` bigint(20) UNSIGNED NOT NULL COMMENT '用户id',
   `follow_user_id` bigint(20) UNSIGNED NOT NULL COMMENT '关联的用户id',
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_user_follow` (`user_id`, `follow_user_id`),
+  KEY `idx_follow_user` (`follow_user_id`, `user_id`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
@@ -120,7 +123,7 @@ CREATE TABLE `tb_shop`  (
   `comments` int(10) UNSIGNED ZEROFILL NOT NULL COMMENT '评论数量',
   `score` int(2) UNSIGNED ZEROFILL NOT NULL COMMENT '评分，1~5分，乘10保存，避免小数',
   `open_hours` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '营业时间，例如 10:00-22:00',
-  `created_by` bigint(20) NOT NULL DEFAULT 0 COMMENT '创建人',
+  `created_by` bigint(20) UNSIGNED NOT NULL COMMENT '创建人（用户ID）',
   `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
@@ -1295,8 +1298,8 @@ CREATE TABLE `tb_voucher_order`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `tb_user_quota`;
 CREATE TABLE `tb_user_quota` (
-  `user_id` bigint(20) NOT NULL,
-  `voucher_id` bigint(20) NOT NULL,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `voucher_id` bigint(20) UNSIGNED NOT NULL,
   `owned_count` int DEFAULT 0,
   PRIMARY KEY (`user_id`, `voucher_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

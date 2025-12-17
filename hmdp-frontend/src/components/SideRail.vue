@@ -51,6 +51,7 @@ const today = new Date().toLocaleDateString();
 const menus = {
   USER: [
     { label: '个人中心', path: '/profile', icon: '👤' },
+    { label: '我的关注', path: '/follows', icon: '⭐' },
     { label: '我的订单', path: '/orders', icon: '🧾' },
     { label: '浏览首页', path: '/', icon: '🏠' }, // 方便用户切回首页
     { label: '探店笔记', path: '/blogs', icon: '📖' },

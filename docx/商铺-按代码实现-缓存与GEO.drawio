@@ -1,0 +1,172 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Shop_Code_Cache_GEO" id="shop-code-cache-geo">
+    <mxGraphModel dx="2200" dy="1550" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="商铺（Shop）按代码实现：创建者权限 + 详情缓存(穿透) + 类型列表ZSET Top-N + GEO附近查询 + 管理员一键重建GEO（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1900" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户/商家/管理员前端）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="280" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(ShopController/ShopServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="340" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(缓存 + GEO + 列表ZSET)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="880" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_shop/tb_shop_type)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+
+        <!-- Client actions -->
+        <mxCell id="11" value="A1 商家新建店铺&#xa;POST /shop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 商家修改店铺&#xa;PUT /shop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="140" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="B1 用户看店铺详情&#xa;GET /shop/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="260" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="C1 列表：按类型(不按距离)&#xa;GET /shop/of/type?typeId=&amp;current=" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="500" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="C2 列表：附近(GEO)&#xa;GET /shop/of/type?typeId=&amp;current=&amp;x=&amp;y=" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="590" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="16" value="D1 管理员：重建 GEO&#xa;POST /shop/geo/rebuild?typeId(可选)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="790" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: create -->
+        <mxCell id="21" value="ShopController&#xa;POST /shop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="ShopServiceImpl.saveShop (@Transactional)&#xa;1) 校验登录(UserHolder)&#xa;2) shop.created_by = currentUserId&#xa;3) INSERT tb_shop&#xa;4) GEOADD shop:geo:&lt;typeId&gt; (x,y,shopId)&#xa;5) ZADD cache:shop:zset:&lt;typeId&gt; score=nowMillis member=shopId&#xa;6) SET cache:shop:&lt;shopId&gt; = shopJson TTL=30m&#xa;（确保新店立即可被列表/附近/详情读到）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="120" width="480" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: update -->
+        <mxCell id="23" value="ShopController&#xa;PUT /shop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="310" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="ShopServiceImpl.update (@Transactional)&#xa;1) SELECT tb_shop by id&#xa;2) 权限：created_by==currentUserId 或 role==ADMIN&#xa;3) 补齐 typeId/x/y（未传则沿用旧值）&#xa;4) UPDATE tb_shop（created_by 保持不变）&#xa;5) updateGeoIndex：type变更→GEOREMOVE旧key；GEOADD新key&#xa;6) 类型列表：旧type变更→ZREM旧zset；ZADD新zset(score=now)&#xa;7) DEL cache:shop:&lt;id&gt;（下次读回源重建）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="370" width="480" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: detail -->
+        <mxCell id="25" value="ShopController&#xa;GET /shop/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="600" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="ShopServiceImpl.queryById → querywithchuantou（当前启用的穿透方案）&#xa;1) GET cache:shop:&lt;id&gt;&#xa;2) 命中且非空 → 直接返回&#xa;3) 命中空字符串(&quot;&quot;) → 直接返回不存在&#xa;4) 未命中 → SELECT tb_shop by id&#xa;   - 不存在：SET cache:shop:&lt;id&gt;=&quot;&quot; TTL=2m（防穿透）&#xa;   - 存在：SET cache:shop:&lt;id&gt;=shopJson TTL=30m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="660" width="480" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: list -->
+        <mxCell id="27" value="ShopController&#xa;GET /shop/of/type" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="860" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="28" value="ShopServiceImpl.queryShopByType(typeId,current,x,y)&#xa;分支1：无 x/y（按类型分页，列表缓存）&#xa;- pageSize=DEFAULT_PAGE_SIZE=5；start=(p-1)*5；end=start+4&#xa;- start&gt;=200 → 直接 DB：ORDER BY update_time DESC LIMIT start,5&#xa;- 否则：ZSET=cache:shop:zset:&lt;typeId&gt;&#xa;  * 若 zCard&lt;end+1 → rebuildTypeZset：SELECT top200 ORDER BY update_time DESC；DEL key；ZADD(score=update_timeMillis)；EXPIRE=30m&#xa;  * ZREVRANGE start..end 取 shopIds；DB 批量 SELECT 并按 FIELD 排序；并 SET cache:shop:&lt;id&gt; TTL=30m&#xa;分支2：有 x/y（附近 GEO）&#xa;- from=(p-1)*MAX_PAGE_SIZE=10；limit=end=p*10&#xa;- GEOSEARCH shop:geo:&lt;typeId&gt; BYRADIUS 5km WITHDIST LIMIT end&#xa;- 若无结果/索引缺失/页越界 → 回退 DB page(typeId,size=DEFAULT_PAGE_SIZE=5)&#xa;- 否则按 ids 批量 SELECT，填充 distance 返回" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=9;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="920" width="480" height="210" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: geo rebuild -->
+        <mxCell id="29" value="ShopServiceImpl.rebuildGeoIndex(typeId?)&#xa;1) 权限：role==ADMIN&#xa;2) SELECT tb_shop（按 typeId 可选过滤，且 x/y 非空）&#xa;3) DEL shop:geo:&lt;typeId&gt;（或按类型分组逐个 DEL）&#xa;4) GEOADD 重建全部 shopId→(x,y)&#xa;返回 {types,shops} 或 {typeId,shops}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1140" width="480" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- Redis: keys -->
+        <mxCell id="31" value="String&#xa;cache:shop:&lt;id&gt;&#xa;val=shopJson&#xa;TTL=30m&#xa;（详情缓存）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="60" width="230" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="String&#xa;cache:shop:&lt;id&gt;=&quot;&quot;&#xa;TTL=2m&#xa;（空值缓存防穿透）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffcc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="270" y="60" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="ZSET&#xa;cache:shop:zset:&lt;typeId&gt;&#xa;member=shopId&#xa;score=update_timeMillis(rebuild) / nowMillis(touch save/update)&#xa;EXPIRE=30m&#xa;Top-N=200&#xa;（按类型列表缓存）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="190" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="GEO&#xa;shop:geo:&lt;typeId&gt;&#xa;member=shopId&#xa;pos=(x,y)&#xa;查询：GEOSEARCH radius=5000m WITHDIST" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="330" width="480" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL tables -->
+        <mxCell id="41" value="tb_shop&#xa;- id(PK)&#xa;- type_id(FK→tb_shop_type.id)&#xa;- x,y(经纬度)&#xa;- created_by(FK→tb_user.id)&#xa;- update_time(create_time)&#xa;索引：type_id, created_by&#xa;（列表按 update_time 排序）" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="70" width="480" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="tb_shop_type&#xa;- id(PK)&#xa;- name/icon/sort&#xa;（首页类型栏）" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="270" width="480" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Why callouts -->
+        <mxCell id="80" value="WHY: cache:shop 空值缓存(2m)&#xa;→ 抵御缓存穿透（不存在的id被反复请求）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1220" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="81" value="WHY: 类型列表用 ZSET(score=update_time) + Top-N=200&#xa;→ 分页语义清晰；深分页回源DB；更新可 touch 到前面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="880" y="1220" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="82" value="WHY: 管理员一键重建 GEO&#xa;→ 历史数据导入后，GEO 索引可补齐，避免附近模式空结果" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1220" width="520" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="INSERT tb_shop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="GEOADD + ZADD + SET detail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="22" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e4" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="权限校验+UPDATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="维护 GEO/ZSET/Cache" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="24" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e7" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="GET cache:shop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="26" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="未命中→DB回源" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e10" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="ZREVRANGE/回源" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="28" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="深分页/批量查DB" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="28" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e13" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="GEOSEARCH" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="28" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e15" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="16" target="29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="DEL+GEOADD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="29" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

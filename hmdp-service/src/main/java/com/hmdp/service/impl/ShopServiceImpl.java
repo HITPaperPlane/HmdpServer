@@ -231,9 +231,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
         // 维护类型列表缓存
         if (!Objects.equals(oldTypeId, shop.getTypeId())) {
-            removeShopFromTypeList(oldTypeId, shop.getId());
+            removeShopFromTypeZset(oldTypeId, shop.getId());
         }
-        pushShopToTypeList(shop.getTypeId(), shop.getId());
+        touchShopToTypeZset(shop.getTypeId(), shop.getId(), System.currentTimeMillis());
 
         // 删详情缓存，等待下次读取重建
         stringRedisTemplate.delete(CACHE_SHOP_KEY + shop.getId());
@@ -267,37 +267,59 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 .list();
     }
 
-    private void pushShopToTypeList(Long typeId, Long shopId) {
+    private String typeZsetKey(Long typeId) {
+        return CACHE_SHOP_ZSET_KEY + typeId;
+    }
+
+    private long shopUpdateScore(Shop shop) {
+        java.time.LocalDateTime t = shop == null ? null : shop.getUpdateTime();
+        if (t == null && shop != null) {
+            t = shop.getCreateTime();
+        }
+        if (t == null) {
+            return System.currentTimeMillis();
+        }
+        return t.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    private void touchShopToTypeZset(Long typeId, Long shopId, Long scoreMillis) {
         if (typeId == null || shopId == null) {
             return;
         }
-        String listKey = CACHE_SHOP_LIST_KEY + typeId;
-        String idStr = shopId.toString();
-        stringRedisTemplate.opsForList().remove(listKey, 0, idStr);
-        stringRedisTemplate.opsForList().leftPush(listKey, idStr);
-        stringRedisTemplate.opsForList().trim(listKey, 0, SHOP_TYPE_CACHE_MAX - 1);
-        stringRedisTemplate.expire(listKey, CACHE_SHOP_LIST_TTL, TimeUnit.MINUTES);
+        String key = typeZsetKey(typeId);
+        double score = scoreMillis == null ? System.currentTimeMillis() : scoreMillis.doubleValue();
+        stringRedisTemplate.opsForZSet().add(key, shopId.toString(), score);
+        stringRedisTemplate.expire(key, CACHE_SHOP_ZSET_TTL, TimeUnit.MINUTES);
     }
 
-    private void removeShopFromTypeList(Long typeId, Long shopId) {
+    private void removeShopFromTypeZset(Long typeId, Long shopId) {
         if (typeId == null || shopId == null) {
             return;
         }
-        String listKey = CACHE_SHOP_LIST_KEY + typeId;
-        stringRedisTemplate.opsForList().remove(listKey, 0, shopId.toString());
+        stringRedisTemplate.opsForZSet().remove(typeZsetKey(typeId), shopId.toString());
     }
 
-    private void cacheShopList(String listKey, List<Shop> shops) {
-        if (shops == null || shops.isEmpty()) {
+    private void rebuildTypeZset(Long typeId) {
+        if (typeId == null) {
             return;
         }
-        List<String> ids = shops.stream().map(s -> s.getId().toString()).collect(Collectors.toList());
-        for (String id : ids) {
-            stringRedisTemplate.opsForList().remove(listKey, 0, id);
+        List<Shop> top = query()
+                .eq("type_id", typeId)
+                .orderByDesc("update_time")
+                .last("LIMIT " + SHOP_TYPE_CACHE_MAX)
+                .list();
+        String key = typeZsetKey(typeId);
+        stringRedisTemplate.delete(key);
+        if (top == null || top.isEmpty()) {
+            return;
         }
-        stringRedisTemplate.opsForList().leftPushAll(listKey, ids);
-        stringRedisTemplate.opsForList().trim(listKey, 0, SHOP_TYPE_CACHE_MAX - 1);
-        stringRedisTemplate.expire(listKey, CACHE_SHOP_LIST_TTL, TimeUnit.MINUTES);
+        for (Shop s : top) {
+            if (s == null || s.getId() == null) {
+                continue;
+            }
+            stringRedisTemplate.opsForZSet().add(key, s.getId().toString(), shopUpdateScore(s));
+        }
+        stringRedisTemplate.expire(key, CACHE_SHOP_ZSET_TTL, TimeUnit.MINUTES);
     }
 
     private void cacheShopDetail(Shop shop) {
@@ -352,8 +374,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 shop.getId().toString()
             );
         }
-        // 3. push to type list cache (最新在前)
-        pushShopToTypeList(shop.getTypeId(), shop.getId());
+        // 3. 写入类型列表 ZSET（按更新时间排序）
+        touchShopToTypeZset(shop.getTypeId(), shop.getId(), System.currentTimeMillis());
         // 4. 预热详情缓存，减少首次查询延迟
         cacheShopDetail(shop);
         // 3. Return shop id
@@ -365,32 +387,39 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         //1. 判断是否需要根据距离查询
         if (x == null || y == null) {
             int pageSize = SystemConstants.DEFAULT_PAGE_SIZE;
-            int start = (current - 1) * pageSize;
+            int page = (current == null || current < 1) ? 1 : current;
+            int start = (page - 1) * pageSize;
             int end = start + pageSize - 1;
-            String listKey = CACHE_SHOP_LIST_KEY + typeId;
+            // 深分页直接回源 DB（只缓存 Top-N 最新店铺）
+            if (start >= SHOP_TYPE_CACHE_MAX) {
+                List<Shop> dbPage = query().eq("type_id", typeId)
+                        .orderByDesc("update_time")
+                        .last("LIMIT " + start + "," + pageSize)
+                        .list();
+                dbPage.forEach(this::cacheShopDetail);
+                return Result.ok(dbPage);
+            }
 
-            // 1) 优先从缓存的店铺ID列表取
-            List<String> cachedIds = stringRedisTemplate.opsForList().range(listKey, start, end);
+            Long t = typeId == null ? null : typeId.longValue();
+            String zsetKey = CACHE_SHOP_ZSET_KEY + typeId;
+            Long cachedSize = stringRedisTemplate.opsForZSet().zCard(zsetKey);
+            if (cachedSize == null || cachedSize < (end + 1)) {
+                rebuildTypeZset(t);
+            }
+            Set<String> cachedIds = stringRedisTemplate.opsForZSet().reverseRange(zsetKey, start, end);
             List<Long> ids = cachedIds == null ? Collections.emptyList()
                     : cachedIds.stream().filter(StrUtil::isNotBlank).map(Long::valueOf).collect(Collectors.toList());
             List<Shop> shops = getShopsByIds(ids);
-
-            // 2) 如果缓存不足，回源数据库补齐当前页并刷新缓存
-            if (shops.size() < pageSize) {
-                int need = pageSize - shops.size();
-                int dbOffset = start + shops.size();
-                List<Shop> dbShops = query().eq("type_id", typeId)
+            if (shops.isEmpty()) {
+                // 缓存缺失时兜底回源
+                List<Shop> dbPage = query().eq("type_id", typeId)
                         .orderByDesc("update_time")
-                        .last("LIMIT " + dbOffset + "," + need)
+                        .last("LIMIT " + start + "," + pageSize)
                         .list();
-                if (!dbShops.isEmpty()) {
-                    shops.addAll(dbShops);
-                    // 写入列表缓存（最新在前，避免重复）
-                    cacheShopList(listKey, dbShops);
-                    // 预热详情缓存
-                    dbShops.forEach(this::cacheShopDetail);
-                }
+                dbPage.forEach(this::cacheShopDetail);
+                return Result.ok(dbPage);
             }
+            shops.forEach(this::cacheShopDetail);
             return Result.ok(shops);
         }
 //        以下是需要根据距离查询
@@ -475,5 +504,80 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 .last("LIMIT 50")
                 .list();
         return Result.ok(shops);
+    }
+
+    @Override
+    @Transactional
+    public Result rebuildGeoIndex(Integer typeId) {
+        UserDTO current = UserHolder.getUser();
+        if (current == null) {
+            return Result.fail("未登录");
+        }
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(StrUtil.blankToDefault(current.getRole(), ""));
+        if (!isAdmin) {
+            return Result.fail("无权限执行该操作");
+        }
+
+        List<Shop> shops;
+        if (typeId != null) {
+            shops = query()
+                    .eq("type_id", typeId)
+                    .isNotNull("x")
+                    .isNotNull("y")
+                    .list();
+            String geoKey = SHOP_GEO_KEY + typeId;
+            stringRedisTemplate.delete(geoKey);
+            int added = 0;
+            if (shops != null) {
+                for (Shop s : shops) {
+                    if (s == null || s.getId() == null || s.getX() == null || s.getY() == null) {
+                        continue;
+                    }
+                    stringRedisTemplate.opsForGeo().add(
+                            geoKey,
+                            new org.springframework.data.geo.Point(s.getX(), s.getY()),
+                            s.getId().toString()
+                    );
+                    added++;
+                }
+            }
+            java.util.Map<String, Object> resp = new java.util.HashMap<>();
+            resp.put("typeId", typeId);
+            resp.put("shops", added);
+            return Result.ok(resp);
+        }
+
+        shops = query()
+                .isNotNull("type_id")
+                .isNotNull("x")
+                .isNotNull("y")
+                .list();
+        if (shops == null || shops.isEmpty()) {
+            return Result.ok(java.util.Collections.singletonMap("shops", 0));
+        }
+        java.util.Map<Long, List<Shop>> byType = shops.stream()
+                .filter(s -> s != null && s.getTypeId() != null)
+                .collect(Collectors.groupingBy(Shop::getTypeId));
+        int total = 0;
+        for (java.util.Map.Entry<Long, List<Shop>> entry : byType.entrySet()) {
+            Long t = entry.getKey();
+            String geoKey = SHOP_GEO_KEY + t;
+            stringRedisTemplate.delete(geoKey);
+            for (Shop s : entry.getValue()) {
+                if (s.getId() == null || s.getX() == null || s.getY() == null) {
+                    continue;
+                }
+                stringRedisTemplate.opsForGeo().add(
+                        geoKey,
+                        new org.springframework.data.geo.Point(s.getX(), s.getY()),
+                        s.getId().toString()
+                );
+                total++;
+            }
+        }
+        java.util.Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("types", byType.size());
+        resp.put("shops", total);
+        return Result.ok(resp);
     }
 }

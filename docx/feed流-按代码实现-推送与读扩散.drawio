@@ -1,0 +1,222 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Feed_Code_Push_And_ReadRepair" id="feed-code-push-read">
+    <mxGraphModel dx="2850" dy="1750" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="Feed流（关注流）按代码实现：发布Outbox→Relay→MQ→feed-service扇出写收件箱 + 读侧 refresh/force 修复（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2700" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（浏览器/前端）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(Follow/Blog API + 读扩散兜底)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="380" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(收件箱/Outbox/锁/点赞)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="720" y="80" width="560" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="relay-service :8084&#xa;(FeedRelayWorker×4)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="80" width="320" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="50" value="RabbitMQ 115.190.193.236&#xa;(feedExchange)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="80" width="320" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="60" value="feed-service :8085&#xa;(FeedDispatcher/FeedWorker)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="80" width="360" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="70" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_blog/tb_follow/...)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="2360" y="80" width="380" height="1180" as="geometry" />
+        </mxCell>
+
+        <!-- Client: follow / publish / read -->
+        <mxCell id="11" value="A1 关注作者&#xa;PUT /follow/{authorId}/true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="B1 发布笔记&#xa;POST /blog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="170" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="C1 打开关注流&#xa;GET /blog/of/follow&#xa;lastId=&lt;nowMs&gt;&amp;offset=0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="780" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="C2 刷新（Smart Pull）&#xa;GET /blog/of/follow&amp;refresh=true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="880" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="C3 强制加载更多（Force Rebuild）&#xa;GET /blog/of/follow&amp;force=true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="970" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: follow -->
+        <mxCell id="21" value="FollowController&#xa;PUT /follow/{id}/{isFollow}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="340" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="FollowServiceImpl.follow(true)&#xa;1) INSERT tb_follow(user_id,follow_user_id)（幂等：已存在则跳过）&#xa;2) 确保 tb_user_info 存在；更新 followee/fans 计数&#xa;3) SADD follows:&lt;userId&gt; &lt;followUserId&gt;&#xa;4) preloadRecentBlogs：查询作者最近10篇 → ZADD feed:&lt;userId&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="120" width="340" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: publish -->
+        <mxCell id="23" value="BlogController&#xa;POST /blog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="310" width="340" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="BlogServiceImpl.saveBlog&#xa;1) INSERT tb_blog(user_id,title,content,images,shop_id?)&#xa;2) LPUSH feed:{feed}:outbox  FeedMessage{authorId,blogId,timestamp}&#xa;3) return blogId（发布快，扇出异步）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="370" width="340" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service: read -->
+        <mxCell id="25" value="BlogController&#xa;GET /blog/of/follow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="780" width="340" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="BlogServiceImpl.queryBlogOfFollow(max,offset,refresh,force)&#xa;0) feedKey=feed:&lt;userId&gt;&#xa;1) force&amp;offset=0 → rebuildInboxFromDb(delete+ZADD latest&lt;=500&gt;)&#xa;2) refresh&amp;offset=0 → smartRefreshLatest(用ZSET首条score做since增量ZADD)&#xa;3) ZREVRANGEBYSCORE WITHSCORES feedKey 0..max offset..limit&#xa;4) 若空且 offset=0 → DB 回源：tb_follow→followIds；tb_blog 최신一页 → 回填 feedKey&#xa;5) SELECT tb_blog by ids（ORDER BY FIELD）&#xa;6) enrich：tb_user/tb_user_info + Redis ZSCORE blog:liked:&lt;blogId&gt; currentUserId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="840" width="340" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Redis: key cards -->
+        <mxCell id="31" value="Set&#xa;follows:&lt;userId&gt;&#xa;member=followUserId&#xa;（关注关系缓存）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="60" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="ZSET&#xa;feed:&lt;userId&gt;&#xa;score=timestamp(ms)&#xa;member=blogId&#xa;EXPIRE=1day" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="150" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="List&#xa;feed:{feed}:outbox&#xa;LPUSH publish event&#xa;（发布事件缓冲）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="310" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="List&#xa;relay:feed:queue:&lt;i&gt;&#xa;RPOPLPUSH 私有备份&#xa;（Relay 崩溃可重发）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffcc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="400" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="35" value="String&#xa;feed:{feed}:split:&lt;blogId&gt;&#xa;SETNX 锁&#xa;TTL=5min&#xa;（防重复扇出）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="290" y="310" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="36" value="ZSET&#xa;blog:liked:&lt;blogId&gt;&#xa;score=likedTime?&#xa;member=userId&#xa;（enrich isLike）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="290" y="410" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="37" value="读侧修复：&#xa;refresh=true → 增量查 DB(create_time&gt;since) → ZADD feedKey&#xa;force=true → delete feedKey → 重建 latest&lt;=500&gt;" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="290" y="780" width="250" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Relay -->
+        <mxCell id="41" value="FeedRelayWorker.start()&#xa;线程池=4&#xa;每线程：RPOPLPUSH outbox→relay:feed:queue:i (2s阻塞)&#xa;convertAndSend(feedExchange,feed.publish)&#xa;Confirm ACK → LREM relay:feed:queue:i 1 payload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="330" width="280" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- RabbitMQ -->
+        <mxCell id="51" value="Exchange&#xa;feedExchange&#xa;durable=true" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="50">
+          <mxGeometry x="80" y="330" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="52" value="Queue&#xa;feed.publish.queue&#xa;durable=true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontStyle=1;fontSize=11;" vertex="1" parent="50">
+          <mxGeometry x="60" y="430" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="53" value="Queue&#xa;feed.batch.queue&#xa;durable=true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontStyle=1;fontSize=11;" vertex="1" parent="50">
+          <mxGeometry x="60" y="520" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="54" value="deliveryMode=2&#xa;(persistent)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="50">
+          <mxGeometry x="190" y="610" width="70" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- feed-service -->
+        <mxCell id="61" value="FeedDispatcher&#xa;@RabbitListener(feed.publish.queue)&#xa;1) SETNX splitLock(feed:{feed}:split:blogId) TTL=5m&#xa;2) SELECT COUNT(*) tb_follow WHERE follow_user_id=authorId&#xa;3) fanCount&lt;=5000 → fetchFollowers + pipeline ZADD feed:&lt;fanId&gt;&#xa;4) fanCount&gt;5000 → send FeedBatchTask → feed.batch.queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="330" width="320" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="62" value="FeedWorker&#xa;@RabbitListener(feed.batch.queue)&#xa;1) SELECT followers slice (ORDER BY id ASC LIMIT offset,limit)&#xa;2) pipeline ZADD feed:&lt;fanId&gt; score=ts member=blogId&#xa;3) EXPIRE feed:&lt;fanId&gt; 1day" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="540" width="320" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL tables -->
+        <mxCell id="71" value="tb_follow&#xa;- id(PK)&#xa;- user_id(粉丝)&#xa;- follow_user_id(作者)&#xa;Index: idx_follow_user(follow_user_id,user_id)&#xa;Index: idx_user_follow(user_id,follow_user_id)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="70">
+          <mxGeometry x="20" y="70" width="340" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="72" value="tb_blog&#xa;- id(PK)&#xa;- user_id(FK)&#xa;- shop_id(NULLable)&#xa;- title/content/images&#xa;- create_time&#xa;Index: idx_user_time(user_id,create_time)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="70">
+          <mxGeometry x="20" y="260" width="340" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="73" value="tb_user / tb_user_info&#xa;- user: id,nick_name,role&#xa;- info: user_id,icon,introduce,followee,fans&#xa;用于 enrich(name/icon/role)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="70">
+          <mxGeometry x="20" y="440" width="340" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- Why callouts -->
+        <mxCell id="80" value="WHY: 发布只写 tb_blog + Outbox&#xa;→ 不在主请求里遍历粉丝(避免 O(粉丝) 阻塞)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1270" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="81" value="WHY: splitLock(SETNX)&#xa;→ MQ 重投/重复消息时，扇出只执行一次" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="860" y="1270" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="82" value="WHY: refresh/force&#xa;→ 修复 Redis 收件箱“最新丢失/中间空洞/不一致”" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1270" width="520" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="写 tb_follow + 计数" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="SADD follows" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="22" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="preloadRecentBlogs → ZADD inbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="22" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e5" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="INSERT tb_blog" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="72">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="LPUSH outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="24" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="RPOPLPUSH + publish" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="33" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="AMQP publish(feed.publish)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="41" target="51">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="route" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="51" target="52">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="consume publish msg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="52" target="61">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="SETNX splitLock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="61" target="35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="查粉丝count/list" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="61" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="ZADD inbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="61" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="send batch task" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="61" target="53">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="consume batch task" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="53" target="62">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="ZADD inbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="62" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e18" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" value="读 ZSET feedKey" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="26" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" value="回源/补齐" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="72">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="refresh/force 修复" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="26" target="37">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" value="enrich: user/info" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="73">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" value="enrich: isLike" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="26" target="36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -213,6 +213,51 @@ sudo nginx -s reload
 ## 缓存同步（店铺/笔记）
 - `relay-service` 预留 `CanalSubscriber` 组件：配置 canal-server 地址后订阅 `tb_shop`、`tb_blog` 等表变更，按项目缓存策略刷新 Redis（店铺、笔记内容以 MySQL 为准）。
 
+## RabbitMQ 运维（持久化/清理/导出）
+> RabbitMQ 的“消息持久化”需要同时满足：Exchange durable + Queue durable + Message persistent（代码里已显式设置 `delivery-mode=persistent`）。
+
+### 1) 查看队列/交换机（在 MQ 服务器 115.190.193.236 执行）
+```bash
+rabbitmqctl list_queues name durable messages
+rabbitmqctl list_exchanges name type durable
+```
+
+### 2) 清空队列消息（不删定义，只清消息）
+```bash
+rabbitmqctl purge_queue seckillQueue
+rabbitmqctl purge_queue feed.publish.queue
+rabbitmqctl purge_queue feed.batch.queue
+rabbitmqctl purge_queue canal.error.queue
+```
+
+一次性清空全部（推荐先确认队列名）：
+```bash
+for q in seckillQueue feed.publish.queue feed.batch.queue canal.error.queue; do
+  rabbitmqctl purge_queue "$q"
+done
+```
+
+### 3) 导出/导入“定义”（交换机/队列/绑定，不含消息体）
+```bash
+rabbitmqctl export_definitions /tmp/definitions.json
+rabbitmqctl import_definitions /tmp/definitions.json
+```
+
+### 4) 备份/清空“持久化数据目录”（包含消息体，需要停机）
+数据目录：`/var/lib/rabbitmq/mnesia/rabbit@<hostname>/`
+
+备份（停机）：
+```bash
+systemctl stop rabbitmq-server
+tar -czf /tmp/rabbitmq-mnesia.tar.gz -C /var/lib/rabbitmq/mnesia rabbit@<hostname>
+systemctl start rabbitmq-server
+```
+
+清空整套持久化（危险：会删除 vhost/users/queues/exchanges/definitions/messages 等全部数据）：
+```bash
+rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl start_app
+```
+
 ## 账号说明
 - 管理员：可在网关/业务层硬编码账号密码后放行预热与审批接口（需在现有服务补充），商家沿用用户短信登录自动注册。
 

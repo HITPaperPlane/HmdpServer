@@ -15,10 +15,14 @@
 
 ## 3. 角色功能覆盖
 ### 用户（C 端）
-- 首页 `/`：店铺分类、搜索、定位附近（`/shop-type/list`、`/shop/of/type`、`/shop/of/name`）。点击店铺即可展开券列表。
+- 首页 `/`：店铺分类、搜索、城市选择 + 附近模式（`/shop-type/list`、`/shop/of/type`、`/shop/of/name`）。
+  - `按类型`：不传 `x/y`，保证能看到该类型店铺列表
+  - `附近`：传 `x/y`（来自选中的城市经纬度），后端走 Redis GEO 附近查询分支
 - 券/秒杀：展开后用 `/voucher/list/{shopId}` 拉券，点击「秒杀」触发 `/voucher-order/seckill/{id}`，Redis 扣减 `seckill:{seckill}:stock:<id>` 并写入 outbox，order-service 落库 `tb_voucher_order`。
-- 订单 `/orders`：`/voucher-order/my?current&size` 查本人订单（DB）。
+  - 一人多单/累计限购：前端会先调用 `/voucher-order/req/{id}` 获取 `reqId`，并写入 `sessionStorage`（30 分钟 TTL），避免刷新页面后丢失导致无法继续轮询状态。
+- 订单 `/orders`：`/voucher-order/my/detail?current&size` 查本人订单（已 join 券/店铺，前端卡片化展示）。
 - 笔记 `/blogs`：热榜 `/blog/hot`、关注流 `/blog/of/follow`，发布 `/blog`（可填店铺 ID），点赞 `/blog/like/{id}`，关注作者 `/follow/{id}/true`。
+- 我的关注 `/follows`：展示关注列表（`GET /follow/of/me`），点击进入作者主页 `/users/:id` 浏览其笔记。
 - 我的 `/profile`：`/user/me` 查看当前登录，签到 `/user/sign`（Redis BitMap），连续签到 `/user/sign/count`，UV `/user/uv` 写入 HyperLogLog，查询 `/user/uv?days=3`。
 
 ### 商家（B 端）
@@ -33,7 +37,7 @@
 
 ### 管理员（A 端）
 - 指标 `/admin/dashboard`：`POST /user/uv` 写 UV，`/user/uv?days=` 查询 HyperLogLog。
-- 店铺巡检 `/admin/shops`：按类型/坐标浏览 `/shop/of/type`，精确编辑 `/shop` POST/PUT。
+- 店铺巡检 `/admin/shops`：按类型/坐标浏览 `/shop/of/type`，精确编辑 `/shop` POST/PUT；一键重建 GEO：`POST /shop/geo/rebuild`。
 - 券池管理 `/admin/vouchers`：
   - 管理端券列表：`GET /voucher/list/manage/{shopId}`
   - 审核并预热秒杀券：`POST /voucher/seckill/preheat/{voucherId}`（写入 Redis 库存键后，用户端才会展示该秒杀券）
@@ -79,6 +83,17 @@
 2) 打开店铺详情页 `/shops/<shopId>`。  
 3) 在「优惠券」列表里应能看到刚才的秒杀券；选择数量（限购类型 2/3 才有数量选择），点击「秒杀」。  
 4) 预期：按钮显示排队/成功；订单页 `/orders` 刷新可看到订单。
+
+### 5.5 Feed：刷新 vs 强制加载更多
+1) 用户 A 登录后关注用户 B（在 `/blogs` 里点「关注作者」或在作者页 `/users/:id` 点关注）。  
+2) 用户 B 发布一条新笔记（`/blogs` → 发布笔记）。  
+3) 用户 A 打开 `/blogs` →「关注流」：
+  - 点击 `刷新`：触发 `refresh=true` 的 Smart Pull（低成本增量补齐最新丢失）
+  - 点击 `强制加载更多`：触发 `force=true` 的回源回填（高成本重建/修复中间空洞）
+
+### 5.6 GEO：附近模式与一键重建
+1) 管理员进入 `/admin/shops`，点击 `重建 GEO(全量)` 或 `重建 GEO(当前类型)`。  
+2) 用户端首页 `/` 选择城市 → 切换为 `附近` 模式 → 加载店铺（后端走 GEO）。  
 
 ## 6. 部署要点
 1) 构建：`cd hmdp-frontend && npm install && npm run build`，产物 `dist/`。  

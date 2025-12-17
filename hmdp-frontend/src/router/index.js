@@ -5,6 +5,8 @@ import Orders from '../views/Orders.vue';
 import Blogs from '../views/Blogs.vue';
 import BlogDetail from '../views/BlogDetail.vue';
 import Profile from '../views/Profile.vue';
+import MyFollows from '../views/MyFollows.vue';
+import UserPage from '../views/UserPage.vue';
 import ShopDetail from '../views/ShopDetail.vue';
 import MerchantDashboard from '../views/MerchantDashboard.vue';
 import MerchantShops from '../views/MerchantShops.vue';
@@ -23,6 +25,8 @@ const routes = [
   { path: '/blogs', name: 'blogs', component: Blogs },
   { path: '/blogs/:id', name: 'blog-detail', component: BlogDetail },
   { path: '/shops/:id', name: 'shop-detail', component: ShopDetail },
+  { path: '/follows', name: 'follows', component: MyFollows },
+  { path: '/users/:id', name: 'user-page', component: UserPage },
   { path: '/profile', name: 'profile', component: Profile },
   { path: '/merchant/dashboard', name: 'merchant-dashboard', component: MerchantDashboard },
   { path: '/merchant/shops', name: 'merchant-shops', component: MerchantShops },
@@ -47,6 +51,7 @@ router.beforeEach((to) => {
   const needsAuth =
       path === '/profile' ||
       path === '/orders' ||
+      path === '/follows' ||
       path.startsWith('/merchant') ||
       path.startsWith('/admin');
 

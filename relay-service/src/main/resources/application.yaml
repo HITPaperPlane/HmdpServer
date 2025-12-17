@@ -23,6 +23,7 @@ spring:
     port: 5672
     template:
       mandatory: true
+      delivery-mode: persistent
     publisher-confirm-type: correlated
 canal:
   host: 123.56.100.212

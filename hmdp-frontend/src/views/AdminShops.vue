@@ -18,7 +18,11 @@
             <div class="title">按类型巡检</div>
             <div class="muted">接口：`GET /shop/of/type`（可选传 `x/y` 计算距离）</div>
           </div>
-          <van-button size="small" plain type="primary" @click="refreshByType">刷新</van-button>
+          <div class="row">
+            <van-button size="small" plain type="primary" @click="refreshByType">刷新</van-button>
+            <van-button size="small" plain type="danger" :loading="geo.loading" @click="rebuildGeo(false)">重建 GEO(全量)</van-button>
+            <van-button size="small" plain type="danger" :disabled="!selectedType" :loading="geo.loading" @click="rebuildGeo(true)">重建 GEO(当前类型)</van-button>
+          </div>
         </div>
 
         <van-cell-group inset>
@@ -130,6 +134,7 @@ const session = useSessionStore();
 const router = useRouter();
 
 const log = ref('准备就绪');
+const geo = reactive({ loading: false });
 
 const types = ref([]);
 const selectedType = ref(null);
@@ -241,6 +246,23 @@ function refreshByType() {
   list.loading = false;
   list.inFlight = false;
   loadByType();
+}
+
+async function rebuildGeo(onlyCurrent) {
+  if (!session.token) return;
+  const typeId = onlyCurrent ? selectedType.value : null;
+  const tip = onlyCurrent ? `确定重建类型 ${typeId} 的 GEO 索引？` : '确定全量重建所有类型的 GEO 索引？';
+  if (!window.confirm(tip)) return;
+  geo.loading = true;
+  try {
+    const q = typeId ? `?typeId=${encodeURIComponent(String(typeId))}` : '';
+    const resp = await request(`/shop/geo/rebuild${q}`, { method: 'POST', token: session.token });
+    log.value = `GEO 重建完成：${JSON.stringify(resp)}`;
+  } catch (e) {
+    log.value = e?.message || 'GEO 重建失败';
+  } finally {
+    geo.loading = false;
+  }
 }
 
 async function loadByType() {

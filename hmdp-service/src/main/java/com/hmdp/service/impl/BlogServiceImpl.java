@@ -269,9 +269,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 获取登录用户
         UserDTO user = UserHolder.getUser();
         blog.setUserId(user.getId());
-        if (blog.getShopId() == null) {
-            blog.setShopId(0L);
-        }
         // 保存探店博文
         boolean isSuccess = blogService.save(blog);
         if (!isSuccess)
@@ -292,15 +289,29 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Override
     public Result queryBlogOfFollow(Long max, Integer offset) {
+        return queryBlogOfFollow(max, offset, false, false);
+    }
+
+    @Override
+    public Result queryBlogOfFollow(Long max, Integer offset, Boolean refresh, Boolean force) {
         //1. 获取当前用户
         Long userId = UserHolder.getUser().getId();
         //2. 查询该用户收件箱（之前我们存的key是固定前缀 + 粉丝id），所以根据当前用户id就可以查询是否有关注的人发了笔记
         String key = FEED_KEY + userId;
+        int safeOffset = offset == null || offset < 0 ? 0 : offset;
+        long safeMax = max == null || max <= 0 ? System.currentTimeMillis() : max;
+
+        if (Boolean.TRUE.equals(force) && safeOffset == 0) {
+            rebuildInboxFromDb(userId, key, SystemConstants.MAX_PAGE_SIZE * 20);
+        } else if (Boolean.TRUE.equals(refresh) && safeOffset == 0) {
+            smartRefreshLatest(userId, key);
+        }
+
         Set<ZSetOperations.TypedTuple<String>> typeTuples = stringRedisTemplate.opsForZSet()
-                .reverseRangeByScoreWithScores(key, 0, max, offset, SystemConstants.MAX_PAGE_SIZE);
+                .reverseRangeByScoreWithScores(key, 0, safeMax, safeOffset, SystemConstants.MAX_PAGE_SIZE);
         //3. 非空判断
         if (typeTuples == null || typeTuples.isEmpty()){
-            if (offset != null && offset > 0) {
+            if (safeOffset > 0) {
                 return Result.ok(Collections.emptyList());
             }
             // Redis 缺数据时回源 DB 重建一页
@@ -378,6 +389,88 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         scrollResult.setOffset(os);
         scrollResult.setMinTime(minTime);
         return Result.ok(scrollResult);
+    }
+
+    private void smartRefreshLatest(Long userId, String feedKey) {
+        Double maxScore = 0D;
+        try {
+            Set<ZSetOperations.TypedTuple<String>> top = stringRedisTemplate.opsForZSet().reverseRangeWithScores(feedKey, 0, 0);
+            if (top != null && !top.isEmpty()) {
+                ZSetOperations.TypedTuple<String> tuple = top.iterator().next();
+                if (tuple != null && tuple.getScore() != null) {
+                    maxScore = tuple.getScore();
+                }
+            }
+        } catch (Exception ignore) {
+            maxScore = 0D;
+        }
+        List<Long> followIds = followService.query()
+                .eq("user_id", userId)
+                .list()
+                .stream()
+                .map(Follow::getFollowUserId)
+                .collect(Collectors.toList());
+        if (followIds.isEmpty()) {
+            return;
+        }
+        java.time.LocalDateTime since = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(maxScore.longValue()),
+                java.time.ZoneId.systemDefault()
+        );
+        List<Blog> newer = query().in("user_id", followIds)
+                .gt("create_time", since)
+                .orderByDesc("create_time")
+                .last("limit " + SystemConstants.MAX_PAGE_SIZE)
+                .list();
+        if (newer == null || newer.isEmpty()) {
+            return;
+        }
+        stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            byte[] keyBytes = feedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            for (Blog blog : newer) {
+                long ts = blog.getCreateTime() == null ? System.currentTimeMillis()
+                        : blog.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                connection.zAdd(keyBytes,
+                        ts,
+                        blog.getId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+        stringRedisTemplate.expire(feedKey, 1, TimeUnit.DAYS);
+    }
+
+    private void rebuildInboxFromDb(Long userId, String feedKey, int limit) {
+        List<Long> followIds = followService.query()
+                .eq("user_id", userId)
+                .list()
+                .stream()
+                .map(Follow::getFollowUserId)
+                .collect(Collectors.toList());
+        if (followIds.isEmpty()) {
+            stringRedisTemplate.delete(feedKey);
+            return;
+        }
+        int safeLimit = Math.max(SystemConstants.MAX_PAGE_SIZE, Math.min(limit, 500));
+        List<Blog> latest = query().in("user_id", followIds)
+                .orderByDesc("create_time")
+                .last("limit " + safeLimit)
+                .list();
+        stringRedisTemplate.delete(feedKey);
+        if (latest == null || latest.isEmpty()) {
+            return;
+        }
+        stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            byte[] keyBytes = feedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            for (Blog blog : latest) {
+                long ts = blog.getCreateTime() == null ? System.currentTimeMillis()
+                        : blog.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                connection.zAdd(keyBytes,
+                        ts,
+                        blog.getId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+        stringRedisTemplate.expire(feedKey, 1, TimeUnit.DAYS);
     }
 
     private void enrichBlogs(List<Blog> blogs, Long currentUserId) {

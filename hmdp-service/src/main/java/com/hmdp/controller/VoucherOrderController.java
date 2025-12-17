@@ -39,6 +39,12 @@ public class VoucherOrderController {
         return voucherOrderService.queryMyOrders(current, size);
     }
 
+    @GetMapping("/my/detail")
+    public Result myOrdersDetail(@RequestParam(value = "current", defaultValue = "1") Integer current,
+                                 @RequestParam(value = "size", defaultValue = "10") Integer size) {
+        return voucherOrderService.queryMyOrdersDetail(current, size);
+    }
+
     @GetMapping("/status")
     public Result queryStatus(@RequestParam("reqId") String requestId) {
         return voucherOrderService.queryStatus(requestId);

@@ -206,6 +206,50 @@ const purchaseCount = reactive({});
 const loading = reactive({ vouchers: false });
 const blogs = reactive({ list: [], page: 1, loading: false, finished: false, inFlight: false });
 
+const REQ_STORE_PREFIX = 'hmdp:seckill:req:';
+const REQ_TTL_MS = 30 * 60 * 1000;
+
+function reqStorageKey(voucherId) {
+  return `${REQ_STORE_PREFIX}${voucherId}`;
+}
+
+function loadStoredReq(voucherId) {
+  try {
+    const raw = sessionStorage.getItem(reqStorageKey(voucherId));
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj?.reqId || !obj?.ts) return null;
+    if (Date.now() - Number(obj.ts) > REQ_TTL_MS) {
+      sessionStorage.removeItem(reqStorageKey(voucherId));
+      return null;
+    }
+    return obj;
+  } catch {
+    try {
+      sessionStorage.removeItem(reqStorageKey(voucherId));
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+}
+
+function saveStoredReq(voucherId, reqId, count) {
+  try {
+    sessionStorage.setItem(reqStorageKey(voucherId), JSON.stringify({ reqId, count, ts: Date.now() }));
+  } catch {
+    // ignore
+  }
+}
+
+function clearStoredReq(voucherId) {
+  try {
+    sessionStorage.removeItem(reqStorageKey(voucherId));
+  } catch {
+    // ignore
+  }
+}
+
 const scoreText = computed(() => `${((shop.score || 0) / 10).toFixed(1)}`);
 const typeName = computed(() => types.value.find(t => t.id === shop.typeId)?.name || '');
 
@@ -277,6 +321,19 @@ async function loadVouchers() {
       if (!purchaseCount[v.id]) {
         purchaseCount[v.id] = 1;
       }
+    });
+    // 恢复“一人多单/累计限购”的待确认 reqId（避免刷新丢失）
+    vouchers.value.forEach(v => {
+      if (!v?.beginTime) return;
+      const limitType = v.limitType || 1;
+      if (limitType === 1) return;
+      const stored = loadStoredReq(v.id);
+      if (!stored) return;
+      if (stored.count && Number(stored.count) > 0) {
+        purchaseCount[v.id] = Number(stored.count);
+      }
+      const state = getSeckillState(v.id);
+      state.reqId = stored.reqId;
     });
     log.value = '券列表已刷新';
   } catch (e) {
@@ -352,8 +409,9 @@ function currentCount(voucherId) {
 
 function onCountChange(voucherId) {
   purchaseCount[voucherId] = currentCount(voucherId);
-  // 切换数量后复用同一请求ID意义不大，重置状态但保留手动申请的 reqId
-  resetSeckillState(getSeckillState(voucherId), true);
+  // 切换数量后属于新的购买意图：清理旧 reqId，避免“同一 reqId 不同 count”导致幂等语义混乱
+  clearStoredReq(voucherId);
+  resetSeckillState(getSeckillState(voucherId), false);
 }
 
 function nextReqId(voucherId) {
@@ -379,8 +437,19 @@ async function seckill(voucherId) {
   }
   // 非一人一单需要预先申请 reqId
   if (limitType !== 1 && !state.reqId) {
+    const stored = loadStoredReq(voucherId);
+    if (stored?.reqId) {
+      state.reqId = stored.reqId;
+      if (stored.count && Number(stored.count) !== buyCount) {
+        state.reqId = '';
+        clearStoredReq(voucherId);
+      }
+    }
+  }
+  if (limitType !== 1 && !state.reqId) {
     try {
       state.reqId = await request(`/voucher-order/req/${voucherId}?count=${buyCount}`, { token: session.token });
+      saveStoredReq(voucherId, state.reqId, buyCount);
     } catch (e) {
       log.value = e?.message || '获取请求号失败';
       return;
@@ -394,6 +463,9 @@ async function seckill(voucherId) {
     const respId = await request(`/voucher-order/seckill/${voucherId}?reqId=${encodeURIComponent(state.reqId)}&count=${buyCount}`, { method: 'POST', token: session.token });
     if (respId) {
       state.reqId = respId;
+      if (limitType !== 1) {
+        saveStoredReq(voucherId, respId, buyCount);
+      }
     }
     state.status = 'PENDING';
     state.startedAt = Date.now();
@@ -410,12 +482,15 @@ async function seckill(voucherId) {
 async function pollStatus(voucherId) {
   const state = getSeckillState(voucherId);
   if (!state.reqId) return;
+  const voucher = vouchers.value.find(v => v.id === voucherId) || {};
+  const limitType = voucher.limitType || 1;
   try {
     const resp = await request(`/voucher-order/status?reqId=${encodeURIComponent(state.reqId)}`, { token: session.token });
     const status = (resp?.status || '').toUpperCase();
     if (status === 'SUCCESS') {
       state.status = 'SUCCESS';
       log.value = '抢购成功';
+      if (limitType !== 1) clearStoredReq(voucherId);
       state.timer = setTimeout(() => resetSeckillState(state), 1500);
       return;
     }
@@ -426,6 +501,7 @@ async function pollStatus(voucherId) {
         state.reason = 'STOCK';
       }
       log.value = resp?.reason ? `失败：${resp.reason}` : '秒杀失败';
+      if (limitType !== 1) clearStoredReq(voucherId);
       state.timer = setTimeout(() => resetSeckillState(state), 1500);
       return;
     }

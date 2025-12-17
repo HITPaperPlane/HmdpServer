@@ -29,6 +29,7 @@ spring:
         prefetch: 200
     template:
       mandatory: true
+      delivery-mode: persistent
 mybatis-plus:
   mapper-locations: classpath:/mapper/*.xml
   type-aliases-package: com.hmdp.feed.entity

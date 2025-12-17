@@ -1,0 +1,241 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Auth_Code_Flow" id="auth-code-flow">
+    <mxGraphModel dx="2900" dy="1850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="2" value="登录与鉴权（严格对照代码）：用户/商家/管理员登录 + Redis Token 续期 + 拦截器 401 + 退出/资料更新（hmdp-service）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2500" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（前端/浏览器）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="Spring MVC Interceptors&#xa;RefreshTokenInterceptor(order=0)&#xa;LoginInterceptor(order=1)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="340" height="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="hmdp-service :8088&#xa;Controllers/Services" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="680" y="80" width="520" height="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="Redis Cluster&#xa;(验证码/Token/限流/UV/签到)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="80" width="520" height="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="50" value="MySQL 123.56.100.212:3306/hmdp" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="80" width="520" height="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="60" value="Mail/SMTP&#xa;(MailUtils.sendtoMail)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#f59e0b;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="80" width="240" height="1500" as="geometry" />
+        </mxCell>
+
+        <!-- Section headers -->
+        <mxCell id="s1" value="━━━━━━━━ 1) 发送验证码（/user/code, /merchant/code → UserServiceImpl.sendCode） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="2500" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Client send code -->
+        <mxCell id="c_sendcode" value="HTTP&#xa;POST /user/code?email=...&#xa;或 POST /merchant/code&#xa;Body: {email}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Service send code -->
+        <mxCell id="svc_sendcode" value="UserServiceImpl.sendCode(email)&#xa;（限流 + 发邮件 + Redis落码）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" vertex="1" parent="30">
+          <mxGeometry x="20" y="60" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_sendcode_checks" value="限流检查（按代码顺序）&#xa;1) SISMEMBER limit:onelevel:&lt;email&gt; &quot;1&quot; → 5分钟禁止&#xa;2) SISMEMBER limit:twolevel:&lt;email&gt; &quot;1&quot; → 20分钟禁止&#xa;3) ZCOUNT sms:sendtime:&lt;email&gt; [now-60s,now] &gt;=1 → 1分钟冷却&#xa;4) ZCOUNT [now-5m,now]：&#xa;   - count==5 → SADD onelevel + EXPIRE 5m + fail&#xa;   - (count%3==2 &amp;&amp; count&gt;5) → SADD twolevel + EXPIRE 20m + fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="130" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_sendcode_mail" value="生成 code + 发邮件&#xa;code=MailUtils.achieveCode()&#xa;MailUtils.sendtoMail(email,code)&#xa;失败：DEL login:code:&lt;email&gt; + 返回 fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="280" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_sendcode_redis" value="Redis落码（成功后）&#xa;SET login:code:&lt;email&gt; = code EX=2m&#xa;ZADD sms:sendtime:&lt;email&gt; score=nowMs member=nowMs&#xa;EXPIRE sms:sendtime:&lt;email&gt; = 6m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="380" width="480" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Redis keys for sendCode -->
+        <mxCell id="r_onelevel" value="Set&#xa;limit:onelevel:&lt;email&gt;&#xa;member=&quot;1&quot;&#xa;TTL=5m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="120" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r_twolevel" value="Set&#xa;limit:twolevel:&lt;email&gt;&#xa;member=&quot;1&quot;&#xa;TTL=20m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="270" y="120" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r_sendtime" value="ZSET&#xa;sms:sendtime:&lt;email&gt;&#xa;score=nowMs&#xa;member=nowMs&#xa;TTL=6m&#xa;用于 ZCOUNT 统计窗口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="220" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="r_login_code" value="String&#xa;login:code:&lt;email&gt; = code&#xa;TTL=2m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="320" width="480" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Mail lane -->
+        <mxCell id="mail_send" value="SMTP Send&#xa;MailUtils.sendtoMail(email, code)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#f59e0b;fontSize=11;" vertex="1" parent="60">
+          <mxGeometry x="20" y="290" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges for sendCode -->
+        <mxCell id="e_sc1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_sendcode" target="svc_sendcode">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sc2" value="检查限流Key" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="svc_sendcode_checks" target="r_onelevel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sc3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="svc_sendcode_checks" target="r_twolevel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sc4" value="ZCOUNT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="svc_sendcode_checks" target="r_sendtime">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sc5" value="send mail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="svc_sendcode_mail" target="mail_send">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sc6" value="SET code + ZADD sendtime" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="svc_sendcode_redis" target="r_login_code">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Section 2: user login -->
+        <mxCell id="s2" value="━━━━━━━━ 2) 用户登录（/user/login → UserServiceImpl.login） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="2500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c_user_login" value="HTTP&#xa;POST /user/login&#xa;{email, code}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="520" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ctrl_user_login" value="UserController.login&#xa;→ userService.login(form,session)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="520" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_user_login" value="UserServiceImpl.login（核心步骤）&#xa;1) RegexUtils 校验 email&#xa;2) GET login:code:&lt;email&gt; → 比较 code&#xa;3) SELECT tb_user WHERE email=?&#xa;4) 不存在→createuser(email) INSERT tb_user(role=USER,nick随机)&#xa;5) token=UUID.randomUUID()&#xa;6) 组装 userMap={id,nickName,icon(from tb_user_info),role}&#xa;7) HMSET login:token:&lt;token&gt; userMap + EXPIRE 30m&#xa;8) DEL login:code:&lt;email&gt;&#xa;9) return token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="580" width="480" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="r_login_token" value="Hash&#xa;login:token:&lt;token&gt;&#xa;fields: id,nickName,icon,role&#xa;TTL=30m&#xa;（RefreshTokenInterceptor 会续期）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="580" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="db_user" value="tb_user&#xa;- id(PK)&#xa;- email(唯一)&#xa;- nick_name&#xa;- role(USER/MERCHANT/ADMIN)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="560" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="db_user_info" value="tb_user_info&#xa;- user_id(PK/FK)&#xa;- icon,city,introduce&#xa;- fans,followee&#xa;- credits,level,gender,birthday" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="700" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ul1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_user_login" target="ctrl_user_login">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ul2" value="GET code / HMSET token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="svc_user_login" target="r_login_token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ul3" value="SELECT/INSERT user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="svc_user_login" target="db_user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Section 3: merchant login -->
+        <mxCell id="s3" value="━━━━━━━━ 3) 商家登录（/merchant/login → MerchantAuthController + ensureRole/ensureMerchant） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="880" width="2500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c_merchant_login" value="HTTP&#xa;POST /merchant/login&#xa;{email, code}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="860" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ctrl_merchant_login" value="MerchantAuthController.login&#xa;1) 校验 email + GET login:code:&lt;email&gt;&#xa;2) tb_user(email) 插入/更新 role=MERCHANT&#xa;3) ensureRole + ensureMerchant&#xa;4) token=UUID + HMSET login:token:&lt;token&gt; + EXPIRE 30m&#xa;5) DEL login:code:&lt;email&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="860" width="480" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="db_role" value="tb_role&#xa;- id(PK)&#xa;- code=MERCHANT&#xa;- name=商家" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="860" width="230" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="db_user_role" value="tb_user_role&#xa;- id(PK)&#xa;- user_id&#xa;- role_id" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="50">
+          <mxGeometry x="270" y="860" width="230" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="db_merchant" value="tb_merchant&#xa;- id(PK)&#xa;- user_id&#xa;- status=1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="990" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ml1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_merchant_login" target="ctrl_merchant_login">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ml2" value="写 role/merchant 相关表" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ctrl_merchant_login" target="db_role">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Section 4: admin login -->
+        <mxCell id="s4" value="━━━━━━━━ 4) 管理员登录（/admin/login → AdminAuthController） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1120" width="2500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c_admin_login" value="HTTP&#xa;POST /admin/login&#xa;{username,password}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="1100" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ctrl_admin_login" value="AdminAuthController.login&#xa;校验 username=admin &amp; password=123456&#xa;token=UUID&#xa;HMSET login:token:&lt;token&gt; {id=&quot;0&quot;,nickName=&quot;admin&quot;,icon=&quot;&quot;,role=&quot;ADMIN&quot;}&#xa;EXPIRE 30m&#xa;return token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1100" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e_al1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_admin_login" target="ctrl_admin_login">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Section 5: interceptors -->
+        <mxCell id="s5" value="━━━━━━━━ 5) 每个请求的鉴权链路（RefreshTokenInterceptor → LoginInterceptor） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1260" width="2500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c_any_req" value="HTTP 任意业务请求&#xa;Header: authorization=&lt;token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="1240" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="it_refresh" value="RefreshTokenInterceptor.preHandle&#xa;1) 取 header token&#xa;2) token空 → 放行&#xa;3) HGETALL login:token:&lt;token&gt;&#xa;4) 空 → 放行&#xa;5) fill UserDTO → UserHolder.saveUser&#xa;6) EXPIRE login:token:&lt;token&gt; 30m（续期）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284c7;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1240" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="it_login" value="LoginInterceptor.preHandle&#xa;if UserHolder.getUser()==null → response 401 + block&#xa;else → 放行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284c7;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1390" width="300" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="it_cleanup" value="afterCompletion&#xa;UserHolder.removeUser()&#xa;（避免 ThreadLocal 泄漏）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#0284c7;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1490" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e_it1" value="进入拦截器链" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="c_any_req" target="it_refresh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_it2" value="读取/续期 tokenHash" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="it_refresh" target="r_login_token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Section 6: logout & profile update -->
+        <mxCell id="s6" value="━━━━━━━━ 6) 退出与资料更新（/user/logout, /user/update, /merchant/profile/update） ━━━━━━━━" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=12;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1585" width="2500" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_logout" value="HTTP&#xa;POST /user/logout&#xa;Header: authorization=&lt;token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="1570" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ctrl_logout" value="UserController.logout&#xa;1) 取 header token&#xa;2) DEL login:token:&lt;token&gt;&#xa;3) UserHolder.removeUser()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1570" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lo1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_logout" target="ctrl_logout">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lo2" value="DEL tokenHash" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="ctrl_logout" target="r_login_token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_user_update" value="HTTP&#xa;POST /user/update&#xa;Body: UserUpdateDTO&#xa;Header: authorization=&lt;token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="1660" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_user_update" value="UserServiceImpl.updateInfo(dto,token)&#xa;1) UPDATE tb_user.nick_name (可选)&#xa;2) SELECT/UPSERT tb_user_info(icon,gender,birthday,city,introduce)&#xa;3) HSET login:token:&lt;token&gt; nickName/icon（可选） + EXPIRE 30m&#xa;4) 同步更新 UserHolder 中的 nickName/icon" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1670" width="480" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="e_up1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_user_update" target="svc_user_update">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_up2" value="UPDATE user/info" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="svc_user_update" target="db_user_info">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_merchant_update" value="HTTP&#xa;POST /merchant/profile/update&#xa;Body: {nickName,icon,gender,city,introduce}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="1760" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_merchant_update" value="MerchantAuthController.updateProfile&#xa;1) userId=UserHolder.getUser().id&#xa;2) UPDATE tb_user.nick_name (可选)&#xa;3) UPDATE tb_user_info(icon,gender,city,introduce) by user_id&#xa;（不更新 tokenHash 字段）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1810" width="480" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mup1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="c_merchant_update" target="svc_merchant_update">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- WHY callouts (short) -->
+        <mxCell id="why1" value="WHY: Token 存 Redis Hash + RefreshTokenInterceptor 续期&#xa;→ 无状态服务器；每次请求自动延长会话" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1615" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="why2" value="WHY: 发送验证码限流用 ZSET 统计窗口 + Set 标记冷却层级&#xa;→ 低成本限流；可配置窗口与惩罚时间" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="1615" width="520" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
