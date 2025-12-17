@@ -134,7 +134,7 @@ const log = ref('准备就绪');
 const types = ref([]);
 const selectedType = ref(null);
 const coords = reactive({ x: '', y: '' });
-const list = reactive({ rows: [], page: 1, loading: false, finished: false });
+const list = reactive({ rows: [], page: 1, loading: false, finished: false, inFlight: false });
 
 const lookupId = ref('');
 const typePicker = reactive({ show: false, target: 'filter', columns: [] });
@@ -238,11 +238,14 @@ function refreshByType() {
   list.rows = [];
   list.page = 1;
   list.finished = false;
+  list.loading = false;
+  list.inFlight = false;
   loadByType();
 }
 
 async function loadByType() {
-  if (!selectedType.value || list.loading || list.finished) return;
+  if (!selectedType.value || list.finished || list.inFlight) return;
+  list.inFlight = true;
   list.loading = true;
   try {
     const q = new URLSearchParams({ typeId: String(selectedType.value), current: String(list.page) });
@@ -262,6 +265,7 @@ async function loadByType() {
     log.value = e?.message || '加载失败';
   } finally {
     list.loading = false;
+    list.inFlight = false;
   }
 }
 

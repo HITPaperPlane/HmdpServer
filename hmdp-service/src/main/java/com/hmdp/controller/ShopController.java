@@ -43,10 +43,7 @@ public class ShopController {
      */
     @PostMapping
     public Result saveShop(@RequestBody Shop shop) {
-        // 写入数据库
-        shopService.save(shop);
-        // 返回店铺id
-        return Result.ok(shop.getId());
+        return shopService.saveShop(shop);
     }
 
     /**
@@ -93,5 +90,16 @@ public class ShopController {
                 .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
         // 返回数据
         return Result.ok(page.getRecords());
+    }
+
+    /**
+     * 查询当前登录用户创建的店铺（商家端选择店铺用）
+     *
+     * @param name 店铺名称关键字（可选）
+     * @return 店铺列表（最多 50 条）
+     */
+    @GetMapping("/of/me")
+    public Result queryMyShops(@RequestParam(value = "name", required = false) String name) {
+        return shopService.queryMyShops(name);
     }
 }

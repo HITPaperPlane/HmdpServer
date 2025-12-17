@@ -7,7 +7,8 @@ export async function request(path, { method = 'GET', body, token } = {}) {
       'Content-Type': 'application/json',
       ...(token ? { authorization: token } : {})
     },
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-cache'
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.success === false) {

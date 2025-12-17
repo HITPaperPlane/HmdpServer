@@ -5,7 +5,8 @@ spring:
     name: hmdp-order
   datasource:
     driver-class-name: com.mysql.jdbc.Driver
-    url: jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC
+    # useAffectedRows=true: 让 ON DUPLICATE KEY UPDATE 的返回值严格符合“1插入 / 2更新 / 0未变(超限)”语义
+    url: jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC&useAffectedRows=true
     username: root
     password: '#gmrGMR110202'
   rabbitmq:

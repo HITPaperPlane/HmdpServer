@@ -3,7 +3,7 @@
     <section class="hero">
       <div class="hero-left">
         <div class="hero-title">券池管理（平台）</div>
-        <div class="hero-sub">选择店铺后管理普通券/秒杀券（创建秒杀券会预热 Redis 库存）</div>
+        <div class="hero-sub">选择店铺后管理普通券/秒杀券（可审核商家提交的秒杀券并执行缓存预热）</div>
       </div>
       <div class="hero-actions">
         <van-button size="small" plain type="default" @click="resetAll">重置</van-button>
@@ -16,7 +16,7 @@
         <div class="section-head">
           <div>
             <div class="title">选择店铺</div>
-            <div class="muted">接口：`GET /shop/of/name`，券列表：`GET /voucher/list/{shopId}`</div>
+            <div class="muted">接口：`GET /shop/of/name`，管理端券列表：`GET /voucher/list/manage/{shopId}`</div>
           </div>
         </div>
 
@@ -64,9 +64,19 @@
           <div class="voucher-card" v-for="v in vouchers" :key="v.id">
             <div class="voucher-top">
               <div class="voucher-title">{{ v.title }}</div>
-              <van-tag :type="v.beginTime ? 'danger' : 'primary'" plain size="mini">
-                {{ v.beginTime ? '秒杀券' : '普通券' }}
-              </van-tag>
+              <div class="row" style="gap:6px;">
+                <van-tag :type="v.type === 1 ? 'danger' : 'primary'" plain size="mini">
+                  {{ v.type === 1 ? '秒杀券' : '普通券' }}
+                </van-tag>
+                <van-tag
+                    v-if="v.type === 1"
+                    :type="Number(v.preheatStatus || 0) >= 2 ? 'success' : 'warning'"
+                    plain
+                    size="mini"
+                >
+                  {{ Number(v.preheatStatus || 0) >= 2 ? '已预热' : '待预热' }}
+                </van-tag>
+              </div>
             </div>
             <div class="voucher-sub muted">{{ v.subTitle }}</div>
             <div class="voucher-price">
@@ -75,8 +85,20 @@
               <span class="actual">抵 ¥{{ v.actualValue }}</span>
             </div>
             <div class="voucher-rule muted">{{ v.rules }}</div>
-            <div class="muted" v-if="v.beginTime">窗口：{{ v.beginTime }} ~ {{ v.endTime }}</div>
-            <div class="muted" v-if="v.beginTime">限购：{{ limitLabel(v.limitType, v.userLimit) }}</div>
+            <div class="muted" v-if="v.type === 1">窗口：{{ v.beginTime }} ~ {{ v.endTime }}</div>
+            <div class="muted" v-if="v.type === 1">限购：{{ limitLabel(v.limitType, v.userLimit) }}</div>
+
+            <div class="row" style="margin-top:10px; gap:10px;">
+              <van-button size="small" plain type="default" @click="copyText(v.id)">复制ID</van-button>
+              <van-button
+                  v-if="v.type === 1 && Number(v.preheatStatus || 0) < 2"
+                  size="small"
+                  type="primary"
+                  @click="preheatSeckill(v.id)"
+              >
+                审核并预热
+              </van-button>
+            </div>
           </div>
         </div>
 
@@ -256,12 +278,34 @@ async function loadVouchers() {
   if (!shop.shopId) return;
   loading.value = true;
   try {
-    vouchers.value = await request(`/voucher/list/${shop.shopId}`);
+    vouchers.value = await request(`/voucher/list/manage/${shop.shopId}`, { token: session.token });
     log.value = '券列表已加载';
   } catch (e) {
     log.value = e?.message || '加载失败';
   } finally {
     loading.value = false;
+  }
+}
+
+async function preheatSeckill(voucherId) {
+  if (!voucherId) return;
+  try {
+    await request(`/voucher/seckill/preheat/${voucherId}`, { method: 'POST', token: session.token });
+    log.value = `预热成功：${voucherId}`;
+    await loadVouchers();
+  } catch (e) {
+    log.value = e?.message || '预热失败';
+  }
+}
+
+async function copyText(value) {
+  const text = String(value ?? '');
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    log.value = '已复制到剪贴板';
+  } catch {
+    log.value = '复制失败（浏览器权限限制）';
   }
 }
 

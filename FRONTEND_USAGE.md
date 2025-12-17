@@ -11,7 +11,7 @@
 - 登录入口 `/login`：
   - 用户：邮箱 + `/user/code` + `/user/login`。
   - 商家：邮箱 + `/merchant/code` + `/merchant/login`（首次会补齐商家、角色表）。
-  - 管理员：账号 `admin` / 密码 `Admin#123456` 走 `/admin/login`。
+  - 管理员：账号 `admin` / 密码 `123456` 走 `/admin/login`。
 
 ## 3. 角色功能覆盖
 ### 用户（C 端）
@@ -24,24 +24,63 @@
 ### 商家（B 端）
 - 总览 `/merchant/dashboard`：按类型预览店铺并跳转各子页。
 - 店铺管理 `/merchant/shops`：`POST /shop` 创建，`PUT /shop` 更新，`/shop/{id}` 查看，`/shop/of/name` 搜索。更新会淘汰缓存键 `shop:cache:id`。
-- 券与秒杀 `/merchant/vouchers`：`POST /voucher` 普通券，`POST /voucher/seckill` 秒杀券（预热 Redis 库存与限购字段），`/voucher/list/{shopId}` 查看。
+- 券与秒杀 `/merchant/vouchers`：
+  - 选择店铺：`GET /shop/of/me`（只返回当前商家创建的店铺）
+  - 管理端券列表：`GET /voucher/list/manage/{shopId}`（包含“待审核预热”的秒杀券）
+  - 普通券：`POST /voucher`（普通券无库存概念，创建后用户端立即可见）
+  - 秒杀券：`POST /voucher/seckill`（商家创建默认不预热，状态为“待审核预热”）
 - 内容/笔记 `/merchant/content`：上传图片 `/upload/blog`，发布 `/blog`（写 DB + 推送关注者 feed），`/blog/of/me` 查看本人。
 
 ### 管理员（A 端）
 - 指标 `/admin/dashboard`：`POST /user/uv` 写 UV，`/user/uv?days=` 查询 HyperLogLog。
 - 店铺巡检 `/admin/shops`：按类型/坐标浏览 `/shop/of/type`，精确编辑 `/shop` POST/PUT。
-- 券池管理 `/admin/vouchers`：同商家，可全局为店铺发券/秒杀。
+- 券池管理 `/admin/vouchers`：
+  - 管理端券列表：`GET /voucher/list/manage/{shopId}`
+  - 审核并预热秒杀券：`POST /voucher/seckill/preheat/{voucherId}`（写入 Redis 库存键后，用户端才会展示该秒杀券）
+  - 管理员直接创建秒杀券：`POST /voucher/seckill`（管理员创建会直接预热）
 - 笔记巡查 `/admin/blogs`：`/blog/hot` 热榜，`/blog/{id}` 查询单条，`/blog/like/{id}` 点赞/取消，上传/删除图片 `/upload/blog`、`/upload/blog/delete?name=xxx`。
 
 ## 4. 经典秒杀验证（前端操作 + 观察点）
-1) 管理员或商家登录 → 「券与秒杀」页创建秒杀券（填店铺 ID、库存、时间窗口、限购）。  
-   - DB：`tb_voucher` 新增；`tb_seckill_voucher` 新增；Redis 预热 `seckill:{seckill}:stock:<id>`。  
-2) 用户登录 → 首页选择对应店铺 → 展开券 → 点击「秒杀」。  
-   - Redis：库存原子扣减；一人一单用 `seckill:{seckill}:order:<voucherId>`；Lua 推入 Stream/列表供 relay-service 拉取。  
-3) relay-service → RabbitMQ → order-service 处理后，可在 `/orders` 刷新看到订单；DB `tb_voucher_order` 增加，库存扣减。  
-4) 关注日志：`logs/hmdp-service.log`（入口校验/写缓存），`logs/relay-service.log`（出站队列），`logs/order-service.log`（落库、幂等）。
+1) 商家登录 → `/merchant/vouchers` 选择自己店铺 → 「秒杀券（待审核）」填写开始/结束时间、库存、限购类型（3 种之一）并提交。  
+   - DB：`tb_voucher` 新增；`tb_seckill_voucher` 新增；`preheat_status=0`（待审核预热）。  
+2) 管理员登录 → `/admin/vouchers` 选择同一店铺 → 在券列表中找到该秒杀券，点击「审核并预热」。  
+   - Redis：写入 `seckill:{seckill}:stock:<voucherId>`；DB：`tb_seckill_voucher.preheat_status=2`。  
+3) 用户登录 → 打开该店铺详情页 `/shops/<id>` → 在优惠券列表中能看到刚才的秒杀券 → 点击「秒杀」。  
+   - Redis：Lua 原子扣减库存/限购；写入 outbox；前端轮询 `/voucher-order/status`。  
+4) relay-service → RabbitMQ → order-service 落库后，用户可在 `/orders` 刷新看到订单。  
+5) 普通券验证：商家在「普通券」创建后，用户端立刻可见（无需预热）。
 
-## 5. 部署要点
+## 5. 手工点击测试流程（你可以照着逐项点）
+
+### 5.1 商家端：选择店铺 + 创建普通券
+1) 登录页 `/login` 切到「商家」登录（邮箱验证码）。  
+2) 进入 `/merchant/vouchers`：左侧「我的店铺」列表应只显示你创建的店铺；点击其中一家。  
+3) 进入「普通券」Tab，填写标题/金额/规则，点击「创建普通券」。  
+4) 下方「券列表」应出现刚创建的普通券（Tag：普通券）。
+
+### 5.2 商家端：提交秒杀券（三种限购之一）
+1) 仍在 `/merchant/vouchers`，切到「秒杀券（待审核）」Tab。  
+2) 必填：标题、库存、开始时间、结束时间。  
+3) 选择限购类型：
+   - 一人一单：选择「一人一单」，单用户限购会自动锁为 1
+   - 一人多单：选择「一人多单」，可多次购买（每次购买需新的 reqId）
+   - 累计限购：选择「累计限购」，填写单用户限购阈值（如 5）
+4) 点击「提交秒杀券审核」。  
+5) 下方「券列表」出现该券，且标识为「秒杀券 + 待审核预热」。
+
+### 5.3 管理员端：审核并预热（让用户端能看到并可抢）
+1) 用管理员账号登录（`admin / 123456`）。  
+2) 进入 `/admin/vouchers`，搜索并选择同一店铺。  
+3) 在券列表里找到刚才商家提交的秒杀券（Tag：待预热），点击「审核并预热」。  
+4) 预期：Tag 变为「已预热」。
+
+### 5.4 用户端：确认展示 + 秒杀抢购
+1) 切换到用户身份登录。  
+2) 打开店铺详情页 `/shops/<shopId>`。  
+3) 在「优惠券」列表里应能看到刚才的秒杀券；选择数量（限购类型 2/3 才有数量选择），点击「秒杀」。  
+4) 预期：按钮显示排队/成功；订单页 `/orders` 刷新可看到订单。
+
+## 6. 部署要点
 1) 构建：`cd hmdp-frontend && npm install && npm run build`，产物 `dist/`。  
 2) nginx：根路径指向 `dist`，`/api` 反代到 `http://127.0.0.1:8088` 并 `rewrite ^/api/?(.*)$ /$1 break;`。  
 3) 本地调试直接 `npm run dev` 打开 `http://localhost:5173/`，三个身份都在同一站点切换。  

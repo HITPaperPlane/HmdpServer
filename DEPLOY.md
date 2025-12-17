@@ -113,6 +113,45 @@ npm --prefix hmdp-frontend install
 npm --prefix hmdp-frontend run build
 ```
 
+#### 4.0) 推荐：由 `hmdp-service:8088` 直接托管前端（无需占用 5173）
+> 适用：服务器不方便再开一个前端端口，或 `vite/nginx` 监听端口受限时。
+
+1) 构建前端：
+```bash
+npm --prefix hmdp-frontend install
+npm --prefix hmdp-frontend run build
+```
+
+2) 启动 `hmdp-service`（默认会从 `../hmdp-frontend/dist` 提供静态资源；可用 JVM 参数覆盖）：
+```bash
+nohup java -Dhmdp.frontend-dist-dir="$(pwd)/hmdp-frontend/dist" -jar hmdp-service/target/hm-dianping-0.0.1-SNAPSHOT.jar --server.port=8088 > logs/hmdp-service.log 2>&1 & echo $!
+```
+
+3) 访问：
+- 前端：`http://127.0.0.1:8088/`
+- API：前端统一走 `/api/**`（后端已做前缀转发到原有 controller 路径）
+
+#### 4.1) 前端无法用 Node 监听端口时（推荐）：用 Nginx 在 5173 提供静态站点 + /api 反代
+> 场景：某些机器上 `node/vite` 可能出现 `listen EPERM` 无法绑定端口。此时用仓库内 Nginx 配置即可跑通前端联调。
+
+准备（先构建一次前端）：
+```bash
+npm --prefix hmdp-frontend install
+npm --prefix hmdp-frontend run build
+```
+
+启动（使用仓库内 `nginx/hmdp-5173.conf`，PID/日志落 `logs/`）：
+```bash
+mkdir -p logs
+nohup nginx -p "$(pwd)" -c nginx/hmdp-5173.conf -g 'pid logs/nginx-5173.pid;' > logs/nginx-5173.log 2>&1 & echo $!
+tail -f logs/nginx-5173.log
+```
+
+停止：
+```bash
+nginx -p "$(pwd)" -c nginx/hmdp-5173.conf -g 'pid logs/nginx-5173.pid;' -s stop
+```
+
 ## Nginx 挂载（静态前端 + /api 反代）
 说明：`hmdp-frontend` 是 SPA，`/admin/**`、`/merchant/**` 等都需要回落到 `index.html`。
 

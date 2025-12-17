@@ -61,11 +61,11 @@
           </div>
         </div>
 
-        <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="loadMore">
-          <div v-if="shops.length === 0 && !loading" style="padding: 20px 0;">
-            <van-empty description="暂无数据" />
-          </div>
+        <div v-if="shops.length === 0 && !loading" style="padding: 20px 0;">
+          <van-empty description="暂无数据" />
+        </div>
 
+        <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="loadMore">
           <div class="shop-grid">
             <div v-for="s in shops" :key="s.id" class="shop-card" @click="openShop(s)">
               <van-image class="shop-cover" :src="s._cover" fit="cover" radius="12px" />
@@ -93,18 +93,30 @@
             </div>
           </div>
         </van-list>
+
+        <div v-if="debug" class="debug-panel">
+          <div class="muted">debug: loading={{ loading }}, finished={{ finished }}, page={{ current }}, mode={{ mode }}, typeId={{ activeTypeId }}</div>
+          <div class="muted" v-if="lastError">error: {{ lastError }}</div>
+          <van-button size="small" plain type="primary" @click="loadMore">Force loadMore</van-button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { request } from '../api/http';
 import { splitImages } from '../utils/media';
 
 const router = useRouter();
+const debug = import.meta.env.DEV;
+const log = (...args) => {
+  if (debug) {
+    console.log('[Home]', ...args);
+  }
+};
 
 const types = ref([]);
 const activeTypeId = ref(null);
@@ -115,6 +127,8 @@ const shops = ref([]);
 const current = ref(1);
 const loading = ref(false);
 const finished = ref(false);
+const inFlight = ref(false);
+const lastError = ref('');
 
 const modeLabel = computed(() => (mode.value === 'search' ? '搜索' : '按类型'));
 const currentTypeName = computed(() => types.value.find(t => t.id === activeTypeId.value)?.name || '-');
@@ -130,6 +144,7 @@ async function loadTypes() {
   types.value = Array.isArray(list) ? list : [];
   if (!activeTypeId.value && types.value.length) {
     activeTypeId.value = types.value[0].id;
+    log('init type', activeTypeId.value);
   }
 }
 
@@ -140,9 +155,18 @@ function resetList() {
 }
 
 async function loadMore() {
-  if (loading.value || finished.value) return;
+  if (finished.value || inFlight.value) return;
+  // 等待分类加载完成再触发；van-list 会先把 loading 置为 true，再触发 @load
+  if (mode.value === 'type' && !activeTypeId.value) {
+    log('skip load, type not ready');
+    loading.value = false;
+    return;
+  }
+  log('loadMore start', { mode: mode.value, activeTypeId: activeTypeId.value, current: current.value });
+  inFlight.value = true;
   loading.value = true;
   try {
+    lastError.value = '';
     let list = [];
     if (mode.value === 'search' && keyword.value.trim()) {
       list = await request(`/shop/of/name?name=${encodeURIComponent(keyword.value.trim())}&current=${current.value}`);
@@ -153,17 +177,37 @@ async function loadMore() {
       }
       list = await request(`/shop/of/type?typeId=${activeTypeId.value}&current=${current.value}`);
     }
-    const rows = Array.isArray(list) ? list : [];
+    const rows =
+        Array.isArray(list) ? list :
+        Array.isArray(list?.records) ? list.records :
+        Array.isArray(list?.list) ? list.list :
+        [];
     if (rows.length === 0) {
       finished.value = true;
+      log('no rows, finish');
       return;
     }
     shops.value.push(...rows.map(normalizeShop));
+    log('loaded rows', rows.length, 'total', shops.value.length);
+    if (debug) {
+      // 暴露给控制台便于排查
+      window.__homeShops = shops.value;
+      window.__homeState = {
+        loading: loading.value,
+        finished: finished.value,
+        page: current.value,
+        mode: mode.value,
+        typeId: activeTypeId.value
+      };
+    }
     current.value += 1;
   } catch (e) {
     finished.value = true;
+    lastError.value = e?.message || String(e);
+    log('load error', e);
   } finally {
     loading.value = false;
+    inFlight.value = false;
   }
 }
 
@@ -200,7 +244,13 @@ function openShop(shop) {
 }
 
 onMounted(async () => {
+  log('mounted');
+  if (debug) {
+    window.__homeShops = shops.value;
+    window.__homeLoadMore = loadMore;
+  }
   await loadTypes();
+  await nextTick();
   await loadMore();
 });
 </script>
@@ -322,6 +372,21 @@ onMounted(async () => {
   margin-bottom: 12px;
 }
 
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 4px;
+}
+
+.debug-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  display: grid;
+  gap: 8px;
+}
+
 .shop-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -422,4 +487,3 @@ onMounted(async () => {
   }
 }
 </style>
-

@@ -6,9 +6,23 @@
         SELECT
             v.`id`, v.`shop_id`, v.`title`, v.`sub_title`, v.`rules`, v.`pay_value`,
             v.`actual_value`, v.`type`, v.`limit_type`, v.`user_limit`, v.`owner_type`,
-            sv.`stock` , sv.begin_time , sv.end_time
+            sv.`stock` , sv.begin_time , sv.end_time, sv.preheat_status
         FROM tb_voucher v
         LEFT JOIN  tb_seckill_voucher sv ON v.id = sv.voucher_id
-        WHERE v.shop_id = #{shopId} AND v.status = 1
+        WHERE v.shop_id = #{shopId}
+          AND v.status = 1
+          AND (v.type = 0 OR (v.type = 1 AND sv.preheat_status >= 2))
+    </select>
+
+    <select id="queryVoucherOfShopForManage" resultType="com.hmdp.entity.Voucher" parameterType="java.lang.Long">
+        SELECT
+            v.`id`, v.`shop_id`, v.`title`, v.`sub_title`, v.`rules`, v.`pay_value`,
+            v.`actual_value`, v.`type`, v.`limit_type`, v.`user_limit`, v.`owner_type`,
+            v.`status`,
+            sv.`stock` , sv.begin_time , sv.end_time, sv.preheat_status
+        FROM tb_voucher v
+        LEFT JOIN  tb_seckill_voucher sv ON v.id = sv.voucher_id
+        WHERE v.shop_id = #{shopId}
+        ORDER BY v.create_time DESC
     </select>
 </mapper>

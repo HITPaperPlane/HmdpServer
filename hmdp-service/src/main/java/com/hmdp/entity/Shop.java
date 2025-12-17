@@ -94,6 +94,11 @@ public class Shop implements Serializable {
     private String openHours;
 
     /**
+     * 创建人（用户/商户/管理员）
+     */
+    private Long createdBy;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;

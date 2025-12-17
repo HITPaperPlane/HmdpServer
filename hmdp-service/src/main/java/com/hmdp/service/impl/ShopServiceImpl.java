@@ -6,13 +6,14 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Shop;
-import com.hmdp.entity.ShopType;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisData;
 import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
@@ -28,9 +29,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.*;
 
@@ -49,6 +53,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     //这里需要声明一个线程池，因为下面缓存击穿问题，我们需要新建一个线程来完成重构缓存
     private static final ExecutorService CACHE_REBUILD_EXECUTOR = Executors.newFixedThreadPool(10);
+    private static final int SHOP_TYPE_CACHE_MAX = 200;
     @Override
     public Result queryById(Long id) {
         //解决缓存穿透的代码逻辑
@@ -86,7 +91,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         //查不到，则将空字符串写入Redis
         if (shop == null) {
             //这里的常量值是2分钟
-            stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, null, CACHE_NULL_TTL, TimeUnit.MINUTES);
+            stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
             return null;
         }
 
@@ -187,15 +192,120 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     @Override
     @Transactional
     public Result update(Shop shop) {
-//        首先先判一下空
         if (shop.getId() == null){
             return Result.fail("店铺id不能为空！！");
         }
-        //先修改数据库
+        UserDTO current = UserHolder.getUser();
+        if (current == null) {
+            return Result.fail("未登录，无法修改店铺");
+        }
+        Shop dbShop = getById(shop.getId());
+        if (dbShop == null) {
+            return Result.fail("店铺不存在！！");
+        }
+        boolean isOwner = Objects.equals(dbShop.getCreatedBy(), current.getId());
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(StrUtil.blankToDefault(current.getRole(), ""));
+        if (!isOwner && !isAdmin) {
+            return Result.fail("无权限修改该店铺");
+        }
+
+        Long oldTypeId = dbShop.getTypeId();
+        // 避免部分字段未传导致覆盖，为关键字段兜底
+        if (shop.getTypeId() == null) {
+            shop.setTypeId(oldTypeId);
+        }
+        if (shop.getX() == null) {
+            shop.setX(dbShop.getX());
+        }
+        if (shop.getY() == null) {
+            shop.setY(dbShop.getY());
+        }
+        // 保持创建人不变
+        shop.setCreatedBy(dbShop.getCreatedBy());
+
+        // 先修改数据库
         updateById(shop);
-        //再删除缓存
+
+        // 更新地理索引
+        updateGeoIndex(dbShop, shop);
+
+        // 维护类型列表缓存
+        if (!Objects.equals(oldTypeId, shop.getTypeId())) {
+            removeShopFromTypeList(oldTypeId, shop.getId());
+        }
+        pushShopToTypeList(shop.getTypeId(), shop.getId());
+
+        // 删详情缓存，等待下次读取重建
         stringRedisTemplate.delete(CACHE_SHOP_KEY + shop.getId());
         return Result.ok();
+    }
+
+    private void updateGeoIndex(Shop oldShop, Shop newShop) {
+        Long oldTypeId = oldShop.getTypeId();
+        Long newTypeId = newShop.getTypeId();
+        Double newX = newShop.getX();
+        Double newY = newShop.getY();
+        if (!Objects.equals(oldTypeId, newTypeId) && oldTypeId != null) {
+            stringRedisTemplate.opsForGeo().remove(SHOP_GEO_KEY + oldTypeId, oldShop.getId().toString());
+        }
+        if (newTypeId != null && newX != null && newY != null) {
+            stringRedisTemplate.opsForGeo().add(
+                    SHOP_GEO_KEY + newTypeId,
+                    new org.springframework.data.geo.Point(newX, newY),
+                    newShop.getId().toString()
+            );
+        }
+    }
+
+    private List<Shop> getShopsByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String idsStr = StrUtil.join(",", ids);
+        return query().in("id", ids)
+                .last("ORDER BY FIELD( id," + idsStr + ")")
+                .list();
+    }
+
+    private void pushShopToTypeList(Long typeId, Long shopId) {
+        if (typeId == null || shopId == null) {
+            return;
+        }
+        String listKey = CACHE_SHOP_LIST_KEY + typeId;
+        String idStr = shopId.toString();
+        stringRedisTemplate.opsForList().remove(listKey, 0, idStr);
+        stringRedisTemplate.opsForList().leftPush(listKey, idStr);
+        stringRedisTemplate.opsForList().trim(listKey, 0, SHOP_TYPE_CACHE_MAX - 1);
+        stringRedisTemplate.expire(listKey, CACHE_SHOP_LIST_TTL, TimeUnit.MINUTES);
+    }
+
+    private void removeShopFromTypeList(Long typeId, Long shopId) {
+        if (typeId == null || shopId == null) {
+            return;
+        }
+        String listKey = CACHE_SHOP_LIST_KEY + typeId;
+        stringRedisTemplate.opsForList().remove(listKey, 0, shopId.toString());
+    }
+
+    private void cacheShopList(String listKey, List<Shop> shops) {
+        if (shops == null || shops.isEmpty()) {
+            return;
+        }
+        List<String> ids = shops.stream().map(s -> s.getId().toString()).collect(Collectors.toList());
+        for (String id : ids) {
+            stringRedisTemplate.opsForList().remove(listKey, 0, id);
+        }
+        stringRedisTemplate.opsForList().leftPushAll(listKey, ids);
+        stringRedisTemplate.opsForList().trim(listKey, 0, SHOP_TYPE_CACHE_MAX - 1);
+        stringRedisTemplate.expire(listKey, CACHE_SHOP_LIST_TTL, TimeUnit.MINUTES);
+    }
+
+    private void cacheShopDetail(Shop shop) {
+        if (shop == null || shop.getId() == null) {
+            return;
+        }
+        stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + shop.getId(),
+                JSONUtil.toJsonStr(shop), CACHE_SHOP_TTL, TimeUnit.MINUTES);
     }
 
     //下面用来解决热点高并发访问中的缓存击穿问题
@@ -225,15 +335,63 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     }
 
     @Override
+    @Transactional
+    public Result saveShop(Shop shop) {
+        UserDTO current = UserHolder.getUser();
+        if (current == null) {
+            return Result.fail("未登录，无法新建店铺");
+        }
+        shop.setCreatedBy(current.getId());
+        // 1. Save to database
+        save(shop);
+        // 2. Add to Redis Geohash index
+        if (shop.getTypeId() != null && shop.getX() != null && shop.getY() != null) {
+            stringRedisTemplate.opsForGeo().add(
+                SHOP_GEO_KEY + shop.getTypeId(),
+                new org.springframework.data.geo.Point(shop.getX(), shop.getY()),
+                shop.getId().toString()
+            );
+        }
+        // 3. push to type list cache (最新在前)
+        pushShopToTypeList(shop.getTypeId(), shop.getId());
+        // 4. 预热详情缓存，减少首次查询延迟
+        cacheShopDetail(shop);
+        // 3. Return shop id
+        return Result.ok(shop.getId());
+    }
+
+    @Override
     public Result queryShopByType(Integer typeId, Integer current, Double x, Double y) {
         //1. 判断是否需要根据距离查询
         if (x == null || y == null) {
-            // 根据类型分页查询
-            Page<Shop> page = query()
-                    .eq("type_id", typeId)
-                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
-            // 返回数据
-            return Result.ok(page.getRecords());
+            int pageSize = SystemConstants.DEFAULT_PAGE_SIZE;
+            int start = (current - 1) * pageSize;
+            int end = start + pageSize - 1;
+            String listKey = CACHE_SHOP_LIST_KEY + typeId;
+
+            // 1) 优先从缓存的店铺ID列表取
+            List<String> cachedIds = stringRedisTemplate.opsForList().range(listKey, start, end);
+            List<Long> ids = cachedIds == null ? Collections.emptyList()
+                    : cachedIds.stream().filter(StrUtil::isNotBlank).map(Long::valueOf).collect(Collectors.toList());
+            List<Shop> shops = getShopsByIds(ids);
+
+            // 2) 如果缓存不足，回源数据库补齐当前页并刷新缓存
+            if (shops.size() < pageSize) {
+                int need = pageSize - shops.size();
+                int dbOffset = start + shops.size();
+                List<Shop> dbShops = query().eq("type_id", typeId)
+                        .orderByDesc("update_time")
+                        .last("LIMIT " + dbOffset + "," + need)
+                        .list();
+                if (!dbShops.isEmpty()) {
+                    shops.addAll(dbShops);
+                    // 写入列表缓存（最新在前，避免重复）
+                    cacheShopList(listKey, dbShops);
+                    // 预热详情缓存
+                    dbShops.forEach(this::cacheShopDetail);
+                }
+            }
+            return Result.ok(shops);
         }
 //        以下是需要根据距离查询
 
@@ -251,15 +409,31 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs().includeDistance().limit(end));
 
         if (results == null) {
-            return Result.ok(Collections.emptyList());
+            // 距离内无结果，回退到普通分页
+            Page<Shop> page = query()
+                    .eq("type_id", typeId)
+                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
+            return Result.ok(page.getRecords());
         }
 
         //4. 解析出id
         List<GeoResult<RedisGeoCommands.GeoLocation<String>>> list = results.getContent();
 
+        if (list == null || list.isEmpty()) {
+            // GEO 索引缺失或附近无店铺，回退到普通分页（保证页面有数据）
+            Page<Shop> page = query()
+                    .eq("type_id", typeId)
+                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
+            return Result.ok(page.getRecords());
+        }
+
         if (list.size() < from) {
             //起始查询位置大于数据总量，则说明没数据了，返回空集合
-            return Result.ok(Collections.emptyList());
+            // 距离内无结果，回退到普通分页
+            Page<Shop> page = query()
+                    .eq("type_id", typeId)
+                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
+            return Result.ok(page.getRecords());
         }
 
         ArrayList<Long> ids = new ArrayList<>(list.size());
@@ -271,6 +445,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             distanceMap.put(shopIdStr, distance);
         });
 
+        if (ids.isEmpty()) {
+            return Result.ok(Collections.emptyList());
+        }
+
 
         //5. 根据id查询shop
         String idsStr = StrUtil.join(",", ids);
@@ -281,6 +459,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             shop.setDistance(distanceMap.get(shop.getId().toString()).getValue());
         }
         //6. 返回
+        return Result.ok(shops);
+    }
+
+    @Override
+    public Result queryMyShops(String name) {
+        UserDTO current = UserHolder.getUser();
+        if (current == null || current.getId() == null) {
+            return Result.fail("未登录");
+        }
+        List<Shop> shops = query()
+                .eq("created_by", current.getId())
+                .like(StrUtil.isNotBlank(name), "name", name)
+                .orderByDesc("update_time")
+                .last("LIMIT 50")
+                .list();
         return Result.ok(shops);
     }
 }

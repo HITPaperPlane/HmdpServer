@@ -138,7 +138,7 @@ const session = useSessionStore();
 
 const log = ref('准备就绪');
 
-const mine = reactive({ list: [], page: 1, loading: false, finished: false });
+const mine = reactive({ list: [], page: 1, loading: false, finished: false, inFlight: false });
 
 const toolbar = [
   [{ header: [1, 2, 3, false] }],
@@ -175,7 +175,8 @@ function normalizeBlog(b) {
 }
 
 async function loadMine(force = false) {
-  if (mine.loading || mine.finished) return;
+  if (mine.finished || mine.inFlight) return;
+  mine.inFlight = true;
   mine.loading = true;
   try {
     const list = await request(`/blog/of/me?current=${mine.page}`, { token: session.token });
@@ -193,6 +194,7 @@ async function loadMine(force = false) {
     log.value = e?.message || '加载失败';
   } finally {
     mine.loading = false;
+    mine.inFlight = false;
   }
 }
 
@@ -200,6 +202,8 @@ function refreshMine() {
   mine.list = [];
   mine.page = 1;
   mine.finished = false;
+  mine.loading = false;
+  mine.inFlight = false;
   loadMine(true);
 }
 

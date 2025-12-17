@@ -126,7 +126,7 @@ const router = useRouter();
 
 const log = ref('准备就绪');
 const query = reactive({ blogId: '' });
-const hot = reactive({ list: [], page: 1, loading: false, finished: false });
+const hot = reactive({ list: [], page: 1, loading: false, finished: false, inFlight: false });
 
 const uploadState = reactive({
   fileList: [],
@@ -147,7 +147,8 @@ function goDetail(id) {
 }
 
 async function loadHot() {
-  if (hot.loading || hot.finished) return;
+  if (hot.finished || hot.inFlight) return;
+  hot.inFlight = true;
   hot.loading = true;
   try {
     const list = await request(`/blog/hot?current=${hot.page}`, { token: session.token || undefined });
@@ -164,6 +165,7 @@ async function loadHot() {
     log.value = e?.message || '加载失败';
   } finally {
     hot.loading = false;
+    hot.inFlight = false;
   }
 }
 
@@ -171,6 +173,8 @@ function refreshHot() {
   hot.list = [];
   hot.page = 1;
   hot.finished = false;
+  hot.loading = false;
+  hot.inFlight = false;
   loadHot();
 }
 

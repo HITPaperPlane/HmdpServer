@@ -106,6 +106,12 @@ public class Voucher implements Serializable {
     private LocalDateTime endTime;
 
     /**
+     * 秒杀券预热状态（来自 tb_seckill_voucher.preheat_status）
+     */
+    @TableField(exist = false)
+    private Integer preheatStatus;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;

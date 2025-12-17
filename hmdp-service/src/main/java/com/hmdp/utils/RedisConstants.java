@@ -12,6 +12,8 @@ public class RedisConstants {
 
     public static final Long CACHE_SHOP_TTL = 30L;
     public static final String CACHE_SHOP_KEY = "cache:shop:";
+    public static final String CACHE_SHOP_LIST_KEY = "cache:shop:list:";
+    public static final Long CACHE_SHOP_LIST_TTL = 30L; // minutes, short-lived list cache for type pages
 
     public static final String CACHE_SHOP_TYPE_KEY = "cache:shoptype:";
     public static final Long CACHE_SHOP_TYPE_TTL = 1440L; // 24小时(分钟)

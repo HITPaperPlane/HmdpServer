@@ -30,8 +30,7 @@ public class VoucherController {
      */
     @PostMapping
     public Result addVoucher(@RequestBody Voucher voucher) {
-        voucherService.save(voucher);
-        return Result.ok(voucher.getId());
+        return voucherService.createVoucher(voucher);
     }
 
     /**
@@ -41,8 +40,7 @@ public class VoucherController {
      */
     @PostMapping("seckill")
     public Result addSeckillVoucher(@RequestBody Voucher voucher) {
-        voucherService.addSeckillVoucher(voucher);
-        return Result.ok(voucher.getId());
+        return voucherService.addSeckillVoucher(voucher);
     }
 
     /**
@@ -53,5 +51,21 @@ public class VoucherController {
     @GetMapping("/list/{shopId}")
     public Result queryVoucherOfShop(@PathVariable("shopId") Long shopId) {
        return voucherService.queryVoucherOfShop(shopId);
+    }
+
+    /**
+     * 管理端查询店铺券列表（商家/管理员可见，包含待预热秒杀券）
+     */
+    @GetMapping("/list/manage/{shopId}")
+    public Result queryVoucherOfShopForManage(@PathVariable("shopId") Long shopId) {
+        return voucherService.queryVoucherOfShopForManage(shopId);
+    }
+
+    /**
+     * 管理员审核并预热秒杀券（写入 Redis 库存键）
+     */
+    @PostMapping("/seckill/preheat/{id}")
+    public Result preheatSeckill(@PathVariable("id") Long voucherId) {
+        return voucherService.preheatSeckillVoucher(voucherId);
     }
 }

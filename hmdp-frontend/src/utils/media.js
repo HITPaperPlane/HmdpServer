@@ -13,4 +13,3 @@ export function splitImages(images) {
   const list = Array.isArray(images) ? images : String(images).split(',');
   return list.map(s => s.trim()).filter(Boolean).map(resolveImg);
 }
-

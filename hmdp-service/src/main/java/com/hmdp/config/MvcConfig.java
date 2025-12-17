@@ -34,7 +34,24 @@ public class MvcConfig implements WebMvcConfigurer {
                                     "/shop-type/**",
                                     "/upload/**",
                                     "/imgs/**",
-                                    "/voucher/**").order(1);
+                                    "/voucher/**",
+                                    "/",
+                                    "/index.html",
+                                    "/favicon.ico",
+                                    "/assets/**",
+                                    "/login",
+                                    "/profile",
+                                    "/orders",
+                                    "/blogs/**",
+                                    "/shops/**",
+                                    "/merchant/dashboard",
+                                    "/merchant/shops",
+                                    "/merchant/vouchers",
+                                    "/merchant/content",
+                                    "/admin/dashboard",
+                                    "/admin/shops",
+                                    "/admin/vouchers",
+                                    "/admin/blogs").order(1);
     }
 
     @Override
@@ -42,5 +59,14 @@ public class MvcConfig implements WebMvcConfigurer {
         String absoluteDir = new File(SystemConstants.IMAGE_UPLOAD_DIR).getAbsolutePath();
         String location = "file:" + (absoluteDir.endsWith(File.separator) ? absoluteDir : absoluteDir + File.separator);
         registry.addResourceHandler("/imgs/**").addResourceLocations(location);
+
+        String frontendDir = System.getProperty(
+                "hmdp.frontend-dist-dir",
+                new File(System.getProperty("user.dir"), "../hmdp-frontend/dist").getPath()
+        );
+        String frontendAbs = new File(frontendDir).getAbsolutePath();
+        String frontendLocation =
+                "file:" + (frontendAbs.endsWith(File.separator) ? frontendAbs : frontendAbs + File.separator);
+        registry.addResourceHandler("/**").addResourceLocations(frontendLocation);
     }
 }

@@ -101,7 +101,7 @@ const router = useRouter();
 const session = useSessionStore();
 
 const types = ref([]);
-const search = reactive({ keyword: '', list: [], page: 1, loading: false, finished: false });
+const search = reactive({ keyword: '', list: [], page: 1, loading: false, finished: false, inFlight: false });
 const merchantAvatar = computed(() => resolveImg(session.profile.icon) || defaultAvatar);
 
 function go(path) {
@@ -132,14 +132,20 @@ function onKeywordChange() {
     search.list = [];
     search.page = 1;
     search.finished = false;
+    search.loading = false;
+    search.inFlight = false;
     if (search.keyword.trim()) searchShops();
   }, 250);
 }
 
 async function searchShops() {
-  if (search.loading || search.finished) return;
+  if (search.finished || search.inFlight) return;
   const kw = search.keyword.trim();
-  if (!kw) return;
+  if (!kw) {
+    search.loading = false;
+    return;
+  }
+  search.inFlight = true;
   search.loading = true;
   try {
     const list = await request(`/shop/of/name?name=${encodeURIComponent(kw)}&current=${search.page}`);
@@ -155,6 +161,7 @@ async function searchShops() {
     search.finished = true;
   } finally {
     search.loading = false;
+    search.inFlight = false;
   }
 }
 

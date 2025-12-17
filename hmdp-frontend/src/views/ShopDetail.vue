@@ -204,7 +204,7 @@ const log = ref('准备就绪');
 const seckillStates = reactive({});
 const purchaseCount = reactive({});
 const loading = reactive({ vouchers: false });
-const blogs = reactive({ list: [], page: 1, loading: false, finished: false });
+const blogs = reactive({ list: [], page: 1, loading: false, finished: false, inFlight: false });
 
 const scoreText = computed(() => `${((shop.score || 0) / 10).toFixed(1)}`);
 const typeName = computed(() => types.value.find(t => t.id === shop.typeId)?.name || '');
@@ -233,7 +233,12 @@ function normalizeBlog(b) {
 }
 
 async function loadBlogs() {
-  if (!shop.id || blogs.loading || blogs.finished) return;
+  if (!shop.id) {
+    blogs.loading = false;
+    return;
+  }
+  if (blogs.finished || blogs.inFlight) return;
+  blogs.inFlight = true;
   blogs.loading = true;
   try {
     const list = await request(`/blog/of/shop?shopId=${shop.id}&current=${blogs.page}`, { token: session.token || undefined });
@@ -250,6 +255,7 @@ async function loadBlogs() {
     log.value = e?.message || '加载笔记失败';
   } finally {
     blogs.loading = false;
+    blogs.inFlight = false;
   }
 }
 
@@ -257,6 +263,8 @@ function refreshBlogs() {
   blogs.list = [];
   blogs.page = 1;
   blogs.finished = false;
+  blogs.loading = false;
+  blogs.inFlight = false;
   loadBlogs();
 }
 

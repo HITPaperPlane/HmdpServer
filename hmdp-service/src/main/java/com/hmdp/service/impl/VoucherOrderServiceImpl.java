@@ -80,6 +80,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (now.isAfter(voucher.getEndTime())) {
             return Result.fail("秒杀已结束");
         }
+        String stockKey = RedisConstants.SECKILL_STOCK_KEY + voucherId;
+        Integer preheatStatus = voucher.getPreheatStatus();
+        if (preheatStatus == null || preheatStatus < 2) {
+            String cachedStock = stringRedisTemplate.opsForValue().get(stockKey);
+            if (!StringUtils.hasText(cachedStock)) {
+                return Result.fail("秒杀券尚未审核预热");
+            }
+        }
         Long userId = UserHolder.getUser().getId();
         // 一人一单：后端生成确定性 reqId；其他类型必须由前端传入并验签
         String resolvedReqId;
@@ -98,7 +106,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         long orderId = redisIdWorker.nextId("order");
 
-        String stockKey = RedisConstants.SECKILL_STOCK_KEY + voucherId;
         String orderKey = RedisConstants.SECKILL_LIMIT_SET_KEY + voucherId;
         String userCountKey = RedisConstants.SECKILL_USER_COUNT_KEY + voucherId;
         String outboxKey = RedisConstants.SECKILL_OUTBOX_KEY;
@@ -237,14 +244,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId = UserHolder.getUser().getId();
         String reqId = String.valueOf(redisIdWorker.nextId("req"));
-        String sign = sign(reqId, voucherId, userId);
         stringRedisTemplate.opsForValue().set(
                 RedisConstants.SECKILL_REQ_TOKEN_KEY + reqId,
                 voucherId + ":" + userId,
                 RedisConstants.SECKILL_REQ_TOKEN_TTL_MINUTES,
                 TimeUnit.MINUTES
         );
-        return Result.ok(reqId + "." + sign);
+        // 按文档：前端直接拿到 reqId 再调用秒杀接口；是否带签名由后端校验 Redis token 来保证
+        return Result.ok(reqId);
     }
 
     @Override
@@ -279,15 +286,20 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (!StringUtils.hasText(token)) {
             return null;
         }
-        String[] parts = token.split("\\.");
-        if (parts.length != 2) {
-            return null;
-        }
-        String reqId = parts[0];
-        String sign = parts[1];
-        String expected = sign(reqId, voucherId, userId);
-        if (!expected.equals(sign)) {
-            return null;
+        String reqId = token;
+        // 兼容旧格式：reqId.sign
+        int dot = token.indexOf('.');
+        if (dot > 0) {
+            String[] parts = token.split("\\.");
+            if (parts.length != 2) {
+                return null;
+            }
+            reqId = parts[0];
+            String sign = parts[1];
+            String expected = sign(reqId, voucherId, userId);
+            if (!expected.equals(sign)) {
+                return null;
+            }
         }
         String cached = stringRedisTemplate.opsForValue().get(RedisConstants.SECKILL_REQ_TOKEN_KEY + reqId);
         String expectedCache = voucherId + ":" + userId;
