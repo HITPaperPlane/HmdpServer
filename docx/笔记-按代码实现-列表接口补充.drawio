@@ -1,0 +1,94 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Blog_List_Endpoints_Code" id="blog-list-endpoints-code">
+    <mxGraphModel dx="2600" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="笔记列表接口（按代码实现补充）：/blog/of/me /blog/of/user /blog/of/shop（/blog/of/follow 见 Feed 图）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(BlogController/BlogServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="700" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(blog:liked ZSET)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_blog/tb_user/tb_user_info)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1580" y="80" width="860" height="1120" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 我发布的笔记&#xa;GET /blog/of/me?current=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="80" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 某用户的笔记&#xa;GET /blog/of/user?id=&lt;uid&gt;&amp;current=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="170" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="A3 某店铺相关笔记&#xa;GET /blog/of/shop?shopId=&lt;sid&gt;&amp;current=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="270" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="A4 关注流&#xa;GET /blog/of/follow ...&#xa;（详见：feed流-按代码实现-推送与读扩散.drawio）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="380" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="BlogController&#xa;GET /blog/of/me&#xa;GET /blog/of/user&#xa;GET /blog/of/shop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="70" width="660" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="/blog/of/me&#xa;Page&lt;Blog&gt; = blogService.query().eq(&quot;user_id&quot;, currentUid)&#xa;.page(new Page(current, MAX_PAGE_SIZE=10))&#xa;return records&#xa;（不补作者信息/点赞状态）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="160" width="660" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="/blog/of/user&#xa;Page&lt;Blog&gt; = blogService.query().eq(&quot;user_id&quot;, id)&#xa;.page(new Page(current, MAX_PAGE_SIZE=10))&#xa;return records&#xa;（不补作者信息/点赞状态）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="290" width="660" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="BlogServiceImpl.queryBlogOfShop(shopId,current)&#xa;1) SELECT tb_blog WHERE shop_id=? ORDER BY create_time DESC LIMIT page(10)&#xa;2) 批量填充作者：tb_user + tb_user_info.icon&#xa;3) isBlogLiked：ZSCORE blog:liked:&lt;blogId&gt; currentUid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="420" width="660" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="WHY：/of/me,/of/user 不补充作者信息&#xa;因为作者就是自己/指定用户；前端可复用 /user/{id} 拉资料&#xa;/of/shop 需要展示多作者 → 代码内批量 enrich" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="580" width="660" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="ZSET&#xa;blog:liked:&lt;blogId&gt;&#xa;isBlogLiked: ZSCORE(key, currentUid) != null" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="460" width="480" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_blog&#xa;查询：user_id / shop_id + 分页&#xa;排序：create_time desc 或 liked desc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="200" width="420" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="tb_user + tb_user_info&#xa;仅 /of/shop 需要批量 enrich name/icon" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="420" width="420" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="page query user_id" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="page query user_id" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="query shop blogs + enrich" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="ZSCORE liked" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="24" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

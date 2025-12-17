@@ -1,0 +1,115 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="ShopType_Code_Cache_Admin" id="shoptype-code-cache-admin">
+    <mxGraphModel dx="2300" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="店铺类型（ShopType）按代码实现：List缓存 + Lua原子写入/过期 + 管理端增改清缓存（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2100" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户/管理端）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(ShopTypeController/ShopTypeServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(cache:shoptype: LIST + Lua)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="860" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_shop_type)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="80" width="740" height="1120" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 用户端：拉取类型&#xa;GET /shop-type/list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="B1 管理端：新增类型&#xa;POST /shop-type/admin&#xa;body: {name,icon?,sort?}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="760" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="B2 管理端：更新类型&#xa;PUT /shop-type/admin/{id}&#xa;body: {name,icon?,sort?}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="870" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="ShopTypeController&#xa;GET /shop-type/list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="480" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="ShopTypeServiceImpl.queryList()&#xa;1) LRANGE cache:shoptype: 0 -1&#xa;2) 若非空 → JSON→ShopType 列表返回&#xa;3) 若空 → DB: order by sort&#xa;4) 若 DB 也空 → seedDefaults() 插入 5 条&#xa;5) Lua(setListWithExpire): DEL + RPUSH + EXPIRE(24h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="120" width="480" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="ShopTypeServiceImpl.seedDefaults()&#xa;INSERT tb_shop_type&#xa;默认：美食/咖啡/饮品/休闲娱乐/酒店&#xa;icon=https://dummyimg.com/...&#xa;sort=1..5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="310" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="ShopTypeController&#xa;POST /shop-type/admin&#xa;PUT /shop-type/admin/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="760" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="ShopTypeServiceImpl.createOrUpdate(shopType, requireId)&#xa;校验：name 非空；requireId=true 时 id 必填；sort 默认 999&#xa;save()/updateById()&#xa;成功后：DEL cache:shoptype:（下次 list 重建）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="830" width="480" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="WHY：使用 Lua 原子写 List+Expire&#xa;避免两条命令之间崩溃造成“永不过期脏缓存”&#xa;脚本：DEL → RPUSH... → EXPIRE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1000" width="480" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="LIST&#xa;cache:shoptype:&#xa;element=ShopType JSON&#xa;TTL=1440m(24h)&#xa;（无空值缓存）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="120" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="Lua：lua/setListWithExpire.lua&#xa;KEYS[1]=cache:shoptype:&#xa;ARGV[1]=ttlSeconds&#xa;ARGV[2..]=json items&#xa;返回 OK" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="280" y="120" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="DEL cache:shoptype:&#xa;（管理端写入后清理）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="830" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_shop_type&#xa;id(pk), name, icon, sort, create_time, update_time&#xa;查询：ORDER BY sort ASC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="120" width="340" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="SQL(查询)&#xa;SELECT * FROM tb_shop_type ORDER BY sort ASC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="230" width="340" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="SQL(写入)&#xa;INSERT/UPDATE tb_shop_type&#xa;（管理端接口）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="840" width="340" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="44" value="seedDefaults()&#xa;saveBatch(default 5 rows)&#xa;再 query() 重新排序返回" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="380" y="230" width="340" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="LRANGE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="22" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="cache miss → DB" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="seed if empty" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="Lua 写回填+EXPIRE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="22" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="写入 LIST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="32" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="INSERT/UPDATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="25" target="43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="DEL cache:shoptype:" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="25" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

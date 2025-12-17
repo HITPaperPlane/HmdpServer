@@ -1,0 +1,91 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Order_Query_Status_Code" id="order-query-status-code">
+    <mxGraphModel dx="2500" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="订单查询（按代码实现）：我的订单/详情（DB分页）+ 秒杀结果状态轮询（读 Redis statusKey）（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(VoucherOrderController/VoucherOrderServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="560" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(seckill statusKey)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="900" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_voucher_order + join)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="80" width="900" height="1120" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 我的订单（基础）&#xa;GET /voucher-order/my?current=1&amp;size=10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 我的订单（详情）&#xa;GET /voucher-order/my/detail?current=1&amp;size=10&#xa;（含 shopName/voucherTitle）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="160" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="B1 秒杀结果轮询&#xa;GET /voucher-order/status?reqId=&lt;reqId或reqId.sign&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="520" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="VoucherOrderController&#xa;GET /voucher-order/my&#xa;GET /voucher-order/my/detail&#xa;GET /voucher-order/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="520" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="VoucherOrderServiceImpl.queryMyOrders(current,size)&#xa;userId=UserHolder&#xa;page=max(current,1)&#xa;limit=min(size, MAX_PAGE_SIZE=10)（size&lt;1 用10）&#xa;SELECT tb_voucher_order WHERE user_id=? ORDER BY create_time DESC LIMIT page" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="160" width="520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="VoucherOrderServiceImpl.queryMyOrdersDetail(current,size)&#xa;offset=(page-1)*limit&#xa;Mapper.queryMyOrderDetails(userId,offset,limit)&#xa;JOIN tb_voucher + LEFT JOIN tb_shop&#xa;返回 DTO{voucherTitle,voucherType,shopName,...}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="290" width="520" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="VoucherOrderServiceImpl.queryStatus(reqId)&#xa;1) unwrapReqId：若 &quot;reqId.sign&quot; 仅取 reqId&#xa;2) statusKey=seckill:{seckill}:status:&lt;reqId&gt;&#xa;3) GET statusKey；若可解析 JSON → status 强制大写返回&#xa;4) 若无 → {status:NOT_FOUND}（无 DB 回源）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="520" width="520" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="WHY：轮询只读 Redis&#xa;写入点：Lua 写 PENDING；order-service 覆盖 SUCCESS/FAILED&#xa;避免订单落库慢时反复查 DB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="700" width="520" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="String&#xa;seckill:{seckill}:status:&lt;reqId&gt;&#xa;val=JSON {status,orderId,voucherId,userId,reason?,count?,timestamp}&#xa;TTL=1800s/30m&#xa;（NOT_FOUND 时不写）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="540" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="状态枚举（实际写入值）&#xa;PENDING（Lua）&#xa;SUCCESS/FAILED（order-service）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="690" width="480" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_voucher_order&#xa;id(pk), request_id(uk_request), user_id, voucher_id, count, limit_type, user_limit, status, create_time&#xa;索引：uk_request(request_id)；idx_user_voucher(user_id,voucher_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="170" width="520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="VoucherOrderMapper.queryMyOrderDetails&#xa;SELECT o.*, v.title,v.type,v.shop_id, s.name&#xa;FROM tb_voucher_order o&#xa;JOIN tb_voucher v ON o.voucher_id=v.id&#xa;LEFT JOIN tb_shop s ON v.shop_id=s.id&#xa;WHERE o.user_id=? ORDER BY o.create_time DESC LIMIT offset,size" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="310" width="520" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="SELECT page" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="JOIN 查询" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="GET statusKey" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="24" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

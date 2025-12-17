@@ -1,0 +1,103 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="User_Profile_Code" id="user-profile-code">
+    <mxGraphModel dx="2600" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="用户资料（按代码实现）：/user/me /user/{id} /user/info/{id} + /user/update 同步更新 DB 与 token 缓存（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(UserController/UserServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="640" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(login:token:&lt;token&gt; Hash)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="980" y="80" width="520" height="1120" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_user/tb_user_info)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="80" width="920" height="1120" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 当前登录用户&#xa;GET /user/me" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 查询用户（简要）&#xa;GET /user/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="150" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="A3 查询用户资料（详细）&#xa;GET /user/info/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="240" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="B1 更新个人资料&#xa;POST /user/update&#xa;Header: authorization=&lt;token&gt;&#xa;Body: UserUpdateDTO{nickName,icon,gender,birthday,city,introduce}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="520" width="220" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="UserController.me()&#xa;return UserHolder.getUser()&#xa;（UserDTO：id/nickName/icon/role...）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="600" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="UserController.queryById(id)&#xa;1) SELECT tb_user by id&#xa;2) copy → UserDTO&#xa;3) SELECT tb_user_info by id（取 icon）&#xa;4) return UserDTO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="150" width="600" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="UserController.info(id)&#xa;SELECT tb_user_info by id&#xa;若为空 → Result.ok()&#xa;否则清空 create_time/update_time 后返回" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="270" width="600" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="UserController.updateInfo(dto, request)&#xa;token = Header.authorization&#xa;→ userService.updateInfo(dto, token)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="520" width="600" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="UserServiceImpl.updateInfo(dto, token)&#xa;1) userId=UserHolder.uid&#xa;2) 若 nickName 非空：UPDATE tb_user.nick_name&#xa;3) tb_user_info：getById；若空创建默认；按 dto 更新 icon/gender/birthday/city/introduce；saveOrUpdate&#xa;4) 若 token 非空：HSET login:token:&lt;token&gt; {nickName,icon} 并 EXPIRE 30m&#xa;5) 更新 UserHolder 内存副本（nickName/icon）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="610" width="600" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="WHY：更新 token Hash&#xa;前端无需重新登录即可看到新头像/昵称&#xa;并顺带刷新 TTL（滑动过期）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="840" width="600" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="Hash&#xa;login:token:&lt;token&gt;&#xa;fields: id,nickName,icon,role,...&#xa;TTL=30m&#xa;（RefreshTokenInterceptor 会续期）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="610" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="updateInfo 写入：&#xa;HSET nickName/icon + EXPIRE 30m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="740" width="480" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_user&#xa;id(pk), email, nick_name, role, ...&#xa;updateInfo：可能更新 nick_name" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="170" width="420" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="tb_user_info&#xa;user_id(pk), icon, gender, birthday, city, introduce, credits, level, fans, followee&#xa;updateInfo：saveOrUpdate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="280" width="420" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="SELECT user/user_info" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="SELECT user_info" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="UPDATE tb_user/tb_user_info" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="25" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="HSET + EXPIRE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="25" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

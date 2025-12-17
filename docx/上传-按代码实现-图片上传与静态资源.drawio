@@ -1,0 +1,126 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Upload_Static_Code" id="upload-static-code">
+    <mxGraphModel dx="2100" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="上传&amp;静态资源（按代码实现）：/upload/* 写入 uploads/imgs → 前端 resolveImg → /imgs/** 静态读取 + SPA forward（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1960" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（浏览器/用户操作）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-frontend（Vite/页面工具）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="340" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="hmdp-service :8088&#xa;(UploadController + MvcConfig + SpaForwardController)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="680" y="80" width="520" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="Filesystem&#xa;(SystemConstants.IMAGE_UPLOAD_DIR)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="80" width="380" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="50" value="Static SPA Dist&#xa;(../hmdp-frontend/dist)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1620" y="80" width="380" height="1040" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 上传图片（示例）&#xa;POST /api/upload/avatar&#xa;form-data: file=&lt;blob&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 返回路径（Result.ok）&#xa;data=&quot;/avatars/d1/d2/uuid.png&quot;&#xa;（注意：返回值不含 /imgs 前缀）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="160" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="B1 页面展示图片&#xa;&lt;img :src=&quot;resolveImg(path)&quot;&gt;&#xa;浏览器 GET /imgs/avatars/..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="310" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="C1 删除笔记图片&#xa;GET /api/upload/blog/delete?name=/blogs/..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="740" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="D1 刷新/直达前端路由&#xa;GET /merchant/vouchers&#xa;（需要 SPA forward）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="860" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Frontend -->
+        <mxCell id="21" value="utils/media.js&#xa;resolveImg(path):&#xa;1) 空/已是 http(s)/data: → 原样&#xa;2) path 以 &quot;/&quot; 开头 → &quot;/imgs&quot;+path&#xa;3) 否则 → &quot;/imgs/&quot;+path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="160" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="vite.config.js(dev)&#xa;proxy:&#xa;- /api → http://127.0.0.1:8088 (rewrite 去掉 /api)&#xa;- /imgs → http://127.0.0.1:8088" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="320" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="WHY：返回值不含 /imgs&#xa;→ 前端统一 resolveImg 适配&#xa;dev/prod 的 IMG_BASE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#6c8ebf;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="460" width="300" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="31" value="UploadController&#xa;POST /upload/avatar|shop|blog&#xa;1) createNewFileName(original, bizDir)&#xa;2) 确保父目录存在&#xa;3) MultipartFile.transferTo(target)&#xa;4) Result.ok(&quot;/&quot;+relativePath)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="60" width="480" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="UploadController.createNewFileName&#xa;UUID → hash → d1/d2 (0~15)&#xa;relative=&quot;{bizDir}/{d1}/{d2}/{uuid}.{suffix}&quot;&#xa;WHY：分散目录，避免单目录文件过多" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="220" width="480" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="MvcConfig.addResourceHandlers&#xa;1) /imgs/** → file:&lt;IMAGE_UPLOAD_DIR&gt;/&#xa;2) /** → file:&lt;frontendDistDir&gt;/&#xa;MvcConfig.addInterceptors exclude: /upload/**, /imgs/**" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="360" width="480" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="UploadController&#xa;GET /upload/blog/delete?name=...&#xa;normalizeRelativePath:&#xa;- trim + \\→/ + 去前导 /&#xa;- 拒绝包含 &quot;..&quot;&#xa;FileUtil.del(file)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="740" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="35" value="SpaForwardController&#xa;GET /merchant/**,/admin/**,/shops/**,/blogs/** → forward:/index.html&#xa;WHY：刷新/深链不 404" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="900" width="480" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Filesystem -->
+        <mxCell id="41" value="SystemConstants.IMAGE_UPLOAD_DIR&#xa;默认：${user.dir}/uploads/imgs&#xa;可覆盖：-Dhmdp.image-upload-dir=/abs/path&#xa;&#xa;写入路径：&lt;dir&gt;/avatars/d1/d2/uuid.png" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="120" width="340" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="静态读取：/imgs/**&#xa;→ 直接映射到该目录下文件&#xa;（无 Controller，无鉴权）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="300" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="删除：FileUtil.del(file)&#xa;（仅删除具体文件，拒绝目录）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="760" width="340" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Static dist -->
+        <mxCell id="51" value="frontendDistDir&#xa;默认：../hmdp-frontend/dist&#xa;可覆盖：-Dhmdp.frontend-dist-dir=..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="120" width="340" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="52" value="MvcConfig / ** 静态资源托管&#xa;assets/**、index.html、favicon.ico 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="240" width="340" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP multipart" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="transferTo(file)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="31" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="Result.ok(&quot;/...&quot;)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="31" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="resolveImg(path)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="GET /imgs/**" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="13" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="ResourceHandler 读取文件" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="33" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="FileUtil.del" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="34" target="43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="GET /merchant/**" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="forward:/index.html → dist" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="35" target="52">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

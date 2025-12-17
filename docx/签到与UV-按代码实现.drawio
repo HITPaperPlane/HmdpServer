@@ -1,0 +1,130 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Sign_UV_Code" id="sign-uv-code">
+    <mxGraphModel dx="2400" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="签到&amp;UV（按代码实现）：Bitmap 签到/连续统计 + HyperLogLog UV（Redis Cluster hash-tag）+ 用户积分/等级（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(UserController/UserServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="560" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(Bitmap / HyperLogLog)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="900" y="80" width="560" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_user_info)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="80" width="760" height="1180" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 今日签到&#xa;POST /user/sign" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 连续签到数&#xa;GET /user/sign/count" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="150" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="A3 当月签到详情&#xa;GET /user/sign/detail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="10">
+          <mxGeometry x="20" y="240" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="B1 记录 UV（前端埋点）&#xa;POST /user/uv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="520" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="B2 查询 UV（近N天）&#xa;GET /user/uv?days=N" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="610" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="UserController&#xa;POST /user/sign" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="520" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="UserServiceImpl.sign()&#xa;1) key=sign:&lt;uid&gt;:&lt;yyyyMM&gt;&#xa;2) day=dayOfMonth&#xa;3) SETBIT key (day-1) 1 → 返回 old&#xa;4) 若 old=true → fail(&quot;今日已签到&quot;)&#xa;5) 更新 tb_user_info：credits+1；level=min(9, credits/10)&#xa;6) 若 DB 失败：best-effort 回滚 SETBIT=0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="120" width="520" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="UserController&#xa;GET /user/sign/count" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="340" width="520" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="UserServiceImpl.signCount()&#xa;1) BITFIELD key GET u&lt;dayOfMonth&gt; 0&#xa;2) num 从低位开始检查：while((num&amp;1)==1) count++ ; num&gt;&gt;&gt;=1&#xa;WHY：BITFIELD 返回值中“最后一天(bit dayOfMonth)”落在最低位 → 可统计以今天结尾的连续签到" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="400" width="520" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="UserController&#xa;GET /user/sign/detail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="600" width="520" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="UserServiceImpl.signDetail()&#xa;for day=1..dayOfMonth: GETBIT key (day-1)&#xa;收集已签到日期列表返回&#xa;（O(天数)；用于前端日历高亮）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="660" width="520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="27" value="UserController&#xa;POST /user/uv&#xa;GET /user/uv?days=N" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" vertex="1" parent="20">
+          <mxGeometry x="20" y="820" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="28" value="UserServiceImpl.recordUv(request)&#xa;identifier = 登录uid 或 remoteAddr&#xa;key=uv:{site}:yyyyMMdd&#xa;PFADD key identifier&#xa;PFCOUNT key → size" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="890" width="520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="29" value="UserServiceImpl.queryUv(days)&#xa;window=min(max(days,1),30)&#xa;keys[i]=uv:{site}:today-i&#xa;PFCOUNT keys...（多 key）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="1020" width="520" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="Bitmap&#xa;sign:&lt;uid&gt;:&lt;yyyyMM&gt;&#xa;bit(day-1)=1 表示已签到&#xa;（无 TTL）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="120" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="SETBIT key offset 1&#xa;返回旧值 old&#xa;→ 用于接口幂等（今日重复签到直接拒绝）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="300" y="140" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="BITFIELD GET uN 0&#xa;一次取回 1..N 天签到位&#xa;（减少多次 GETBIT 往返）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="420" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="HyperLogLog&#xa;uv:{site}:yyyyMMdd&#xa;PFADD / PFCOUNT&#xa;（无 TTL，近似去重统计）&#xa;WHY：key 含 hash-tag {site}，Redis Cluster 支持多 key PFCOUNT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="910" width="520" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_user_info&#xa;user_id(pk)&#xa;credits(int)&#xa;level(int 0..9)&#xa;（签到时写入/更新）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="140" width="360" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="规则（代码内）&#xa;每次签到 +1 credits&#xa;level = min(9, credits/10)&#xa;saveOrUpdate(UserInfo)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="260" width="360" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="SETBIT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="22" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="更新 credits/level" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="BITFIELD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="24" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="GETBIT x 天" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="PFADD/PFCOUNT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="28" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="PFCOUNT 多key" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="29" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

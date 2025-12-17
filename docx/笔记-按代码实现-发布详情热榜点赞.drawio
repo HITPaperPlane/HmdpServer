@@ -1,0 +1,142 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Blog_Code_Core" id="blog-code-core">
+    <mxGraphModel dx="2900" dy="1700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="笔记（Blog）按代码实现：发布写 Outbox + 热榜/详情/点赞/点赞榜（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2700" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(BlogController/BlogServiceImpl + 异步Executor)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="620" height="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(点赞ZSET / Feed Outbox)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="960" y="80" width="560" height="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_blog/tb_user/tb_user_info)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="80" width="1200" height="1280" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 发布笔记&#xa;POST /blog&#xa;body: Blog{title,content,images,shopId?}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 热榜列表&#xa;GET /blog/hot?current=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="180" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="A3 详情页&#xa;GET /blog/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="270" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="B1 点赞/取消赞&#xa;PUT /blog/like/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="620" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="B2 点赞榜 Top5&#xa;GET /blog/likes/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="710" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="BlogController&#xa;POST /blog&#xa;GET /blog/hot&#xa;GET /blog/{id}&#xa;PUT /blog/like/{id}&#xa;GET /blog/likes/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="580" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="BlogServiceImpl.saveBlog(blog)&#xa;1) blog.userId=UserHolder.uid&#xa;2) INSERT tb_blog&#xa;3) LPUSH feed:{feed}:outbox FeedMessage{authorId,blogId,timestamp}&#xa;WHY：发布快；扇出推送异步（见 feed 图）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="190" width="580" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="BlogServiceImpl.queryHotBlog(current)&#xa;1) SELECT tb_blog ORDER BY liked DESC LIMIT page(10)&#xa;2) 批量加载作者：tb_user + tb_user_info&#xa;3) isBlogLiked: ZSCORE blog:liked:&lt;blogId&gt; currentUid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="340" width="580" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="BlogServiceImpl.queryById(id)（详情异步聚合）&#xa;并发任务：&#xa;- blogFuture: getById(blogId)&#xa;- userFuture: userService.getById(blog.userId)&#xa;- userInfoFuture: userInfoService.getById(blog.userId)&#xa;- likeFuture: ZSCORE blog:liked:&lt;blogId&gt; currentUid&#xa;join 后填充：blog.name / blog.icon / blog.isLike&#xa;异常：降级同步 queryBlogUser + isLike=false" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="500" width="580" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="BlogServiceImpl.likeBlog(id)&#xa;key=blog:liked:&lt;id&gt;&#xa;1) ZSCORE(key, uid)&#xa;2) 若未点赞：UPDATE tb_blog SET liked=liked+1; ZADD(key, uid, nowMs)&#xa;3) 若已点赞：UPDATE tb_blog SET liked=liked-1; ZREM(key, uid)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="720" width="580" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="BlogServiceImpl.queryBlogLikes(id)&#xa;1) ZRANGE blog:liked:&lt;id&gt; 0 4 → userIds&#xa;2) SELECT tb_user WHERE id IN (...) ORDER BY FIELD(id,ids...)&#xa;3) 批量查 tb_user_info.icon 填充 DTO.icon&#xa;WHY：ZSET score=时间戳 → 点赞时间有序" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="880" width="580" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="ZSET&#xa;blog:liked:&lt;blogId&gt;&#xa;member=userId&#xa;score=nowMs(点赞时间)&#xa;用途：&#xa;- 是否点赞：ZSCORE&#xa;- 点赞榜：ZRANGE 0..4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="680" width="260" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="LIST&#xa;feed:{feed}:outbox&#xa;LPUSH FeedMessage{authorId,blogId,timestamp}&#xa;（由 relay-service 搬运到 MQ）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="220" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="WHY：点赞用 ZSET 而非 SET&#xa;需要保留 TopN&amp;顺序（按时间）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="300" y="710" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_blog&#xa;id(pk), user_id, shop_id?, title, images, content, liked, create_time&#xa;索引：idx_user_time(user_id, create_time)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="220" width="420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="tb_user&#xa;id(pk), nick_name, role, ..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="360" width="420" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="tb_user_info&#xa;user_id(pk), icon, introduce, ..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="440" width="420" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="44" value="热榜查询&#xa;SELECT * FROM tb_blog ORDER BY liked DESC LIMIT pageSize(10)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="460" y="360" width="420" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="45" value="点赞计数更新（SQL）&#xa;UPDATE tb_blog SET liked = liked ± 1 WHERE id=?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="460" y="720" width="420" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="46" value="点赞榜用户查询&#xa;SELECT * FROM tb_user WHERE id IN (...) ORDER BY FIELD(id, ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="460" y="900" width="420" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="INSERT tb_blog" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="LPUSH outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="22" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="ORDER BY liked" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="ZSCORE 是否点赞" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="23" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="异步并发查询" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="ZSCORE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="24" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="UPDATE liked ±1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="25" target="45">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="ZADD/ZREM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="25" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="ZRANGE top5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="26" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="ORDER BY FIELD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="46">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

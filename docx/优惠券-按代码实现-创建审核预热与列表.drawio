@@ -1,0 +1,124 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Voucher_Code_Lifecycle" id="voucher-code-lifecycle">
+    <mxGraphModel dx="2700" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="优惠券（按代码实现）：普通券/秒杀券创建 →（商家创建需管理员预热）→ 用户列表可见性 + 权限校验（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2500" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（商家/管理员/用户）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(VoucherController/VoucherServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="520" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(秒杀库存预热键)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="860" y="80" width="520" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_voucher/tb_seckill_voucher/tb_shop)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="80" width="1140" height="1180" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 创建普通券&#xa;POST /voucher&#xa;body: Voucher{shopId,title,rules,payValue,actualValue,type=0,...}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 创建秒杀券&#xa;POST /voucher/seckill&#xa;body: Voucher{type=1,stock,beginTime,endTime,limitType,userLimit,...}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="190" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="A3 管理员预热秒杀券&#xa;POST /voucher/seckill/preheat/{voucherId}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="340" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="B1 用户端看店铺券&#xa;GET /voucher/list/{shopId}&#xa;（只返回上架&amp;已预热秒杀券）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="640" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="B2 管理端/商家端券管理列表&#xa;GET /voucher/list/manage/{shopId}&#xa;（可见草稿/待预热）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="760" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="VoucherController&#xa;POST /voucher&#xa;POST /voucher/seckill&#xa;POST /voucher/seckill/preheat/{id}&#xa;GET /voucher/list/{shopId}&#xa;GET /voucher/list/manage/{shopId}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="480" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="权限校验（VoucherServiceImpl）&#xa;validateShopOwner(shopId):&#xa;- 必须登录(UserHolder)&#xa;- shop 存在&#xa;- shop.createdBy==currentUserId 或 role=ADMIN&#xa;&#xa;validateShopManager(shopId):&#xa;- 同上（用于 manage 列表）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="190" width="480" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="createVoucher(voucher)&#xa;1) validateShopOwner(v.shopId)&#xa;2) INSERT tb_voucher&#xa;3) return voucher.id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="360" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="addSeckillVoucher(voucher) @Transactional&#xa;1) validateShopOwner(v.shopId)&#xa;2) INSERT tb_voucher（主表）&#xa;3) INSERT tb_seckill_voucher(voucher_id,stock,begin,end,limitType,userLimit)&#xa;4) 若 current.role=ADMIN：SET Redis stockKey；sv.preheatStatus=2&#xa;   否则：sv.preheatStatus=0（待审核/待预热）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="470" width="480" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="preheatSeckillVoucher(voucherId) @Transactional&#xa;1) require ADMIN&#xa;2) SELECT tb_seckill_voucher by voucher_id&#xa;3) 校验 stock&gt;=0&#xa;4) SET Redis stockKey=stock&#xa;5) UPDATE tb_seckill_voucher.preheat_status=2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="640" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="queryVoucherOfShop(shopId)&#xa;Mapper.queryVoucherOfShop:&#xa;WHERE v.shop_id=? AND v.status=1&#xa;  AND (v.type=0 OR (v.type=1 AND sv.preheat_status &gt;= 2))&#xa;&#xa;queryVoucherOfShopForManage(shopId)&#xa;先 validateShopManager，再查询全量 ORDER BY v.create_time DESC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="800" width="480" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="27" value="WHY：秒杀券需预热才可见/可抢&#xa;- 列表层：sv.preheat_status&lt;2 不返回给用户端&#xa;- 入口层：seckillVoucher() 也会检查 Redis stockKey 是否存在" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="990" width="480" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="String&#xa;stockKey&#xa;seckill:{seckill}:stock:&lt;voucherId&gt;&#xa;val=stock(int)&#xa;（无 TTL）&#xa;写入点：addSeckillVoucher(ADMIN) / preheatSeckillVoucher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="560" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="注意：用户端 list 不读 Redis&#xa;可见性来自 DB join + preheat_status&#xa;（Redis 仅承载秒杀库存/Lua入口）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="720" width="480" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="41" value="tb_shop&#xa;id(pk), created_by, type_id, ...&#xa;（权限：shop.created_by 仅创建者可发券/看管理列表）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="190" width="380" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="tb_voucher&#xa;id(pk), shop_id, title, pay_value, actual_value, type(0/1), limit_type(1/2/3), user_limit, owner_type, status, create_time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="310" width="540" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="tb_seckill_voucher&#xa;voucher_id(pk,=tb_voucher.id)&#xa;stock, begin_time, end_time, limit_type, user_limit, preheat_status&#xa;（preheat_status=0 草稿；2 已预热）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="430" width="540" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="44" value="VoucherMapper.xml&#xa;queryVoucherOfShop: LEFT JOIN tb_seckill_voucher&#xa;过滤：v.status=1 AND (v.type=0 OR (v.type=1 AND sv.preheat_status&gt;=2))&#xa;&#xa;queryVoucherOfShopForManage: 不过滤，按 create_time DESC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="820" width="540" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="INSERT tb_voucher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="23" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="INSERT tb_voucher + tb_seckill_voucher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="set stockKey（ADMIN 创建/预热）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="24" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="UPDATE preheat_status + SET stockKey" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="25" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="UPDATE tb_seckill_voucher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="25" target="43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="DB join 查询" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="26" target="44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,74 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Shop_Search_MyShops_Code" id="shop-search-myshops-code">
+    <mxGraphModel dx="2300" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="商铺（按代码实现补充）：按名称搜索 /shop/of/name + 我的店铺 /shop/of/me（用于商家端选择店铺）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2100" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client（用户/商家）" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="980" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(ShopController/ShopServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="720" height="980" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="MySQL 123.56.100.212:3306/hmdp&#xa;(tb_shop)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="80" width="1080" height="980" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 按名称搜索商铺&#xa;GET /shop/of/name?name=xxx&amp;current=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="80" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 查询我创建的店铺&#xa;GET /shop/of/me?name=xxx&#xa;（商家端：选择店铺/发券前置）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="200" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="ShopController.queryShopByName&#xa;GET /shop/of/name" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="70" width="680" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="实现（Controller 内直接查）&#xa;Page&lt;Shop&gt; page = shopService.query()&#xa;.like(name 非空, &quot;name&quot;, name)&#xa;.page(new Page(current, MAX_PAGE_SIZE=10))&#xa;return page.getRecords()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="130" width="680" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="ShopController.queryMyShops&#xa;GET /shop/of/me" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="260" width="680" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="ShopServiceImpl.queryMyShops(name)&#xa;1) require login(UserHolder)&#xa;2) SELECT tb_shop WHERE created_by=currentUid&#xa;   AND (name 为空则不 like)&#xa;   ORDER BY update_time DESC&#xa;   LIMIT 50&#xa;3) return list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="320" width="680" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="WHY：/shop/of/me 的 created_by&#xa;用于：&#xa;- 仅创建者可修改店铺/发券（见 Shop/Voucher 权限图）&#xa;- 商家端 UI 先选店铺再发券" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="470" width="680" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="31" value="tb_shop&#xa;id(pk), name, type_id, created_by, update_time, ...&#xa;索引：foreign_key_type(type_id)&#xa;（当前 SQL 文件未给 created_by 建索引）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="140" width="520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="SQL(of/name)&#xa;SELECT ... FROM tb_shop&#xa;WHERE name LIKE %keyword%&#xa;LIMIT offset,10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="260" width="520" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="SQL(of/me)&#xa;SELECT ... FROM tb_shop&#xa;WHERE created_by = currentUid&#xa;AND name LIKE %keyword% (可选)&#xa;ORDER BY update_time DESC&#xa;LIMIT 50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="360" width="520" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="Page query" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="22" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="SELECT by created_by" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
