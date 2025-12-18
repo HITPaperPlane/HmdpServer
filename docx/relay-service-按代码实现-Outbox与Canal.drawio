@@ -1,169 +1,166 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
   <diagram name="Relay_Outbox_Canal_Code" id="relay-outbox-canal-code">
-    <mxGraphModel dx="3200" dy="1900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1489" dy="929" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="2" value="relay-service（按代码实现）：Redis Outbox→私有队列(RPOPLPUSH)→RabbitMQ(Confirm) + Canal 订阅删缓存→DLQ（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="2" value="relay-service（按代码实现）：Redis Outbox→私有队列(RPOPLPUSH)→RabbitMQ(Confirm) + Canal 订阅删缓存→DLQ（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" parent="1" vertex="1">
           <mxGeometry x="40" y="10" width="3000" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Swimlanes -->
-        <mxCell id="10" value="hmdp-service :8088&#xa;(生产 Outbox)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+        <mxCell id="10" value="hmdp-service :8088&#xa;(生产 Outbox)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
           <mxGeometry x="40" y="80" width="320" height="1450" as="geometry" />
         </mxCell>
-        <mxCell id="20" value="Redis Cluster&#xa;(Outbox/私有队列/缓存键)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="380" y="80" width="560" height="1450" as="geometry" />
-        </mxCell>
-        <mxCell id="30" value="relay-service :8084&#xa;SeckillRelayWorker×6&#xa;FeedRelayWorker×4&#xa;CanalSubscriber×1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="960" y="80" width="620" height="1450" as="geometry" />
-        </mxCell>
-        <mxCell id="40" value="RabbitMQ 115.190.193.236&#xa;(durable + persistent + confirm=correlated)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="1600" y="80" width="520" height="1450" as="geometry" />
-        </mxCell>
-        <mxCell id="50" value="order-service :8083&#xa;(消费秒杀消息)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="2140" y="80" width="420" height="1450" as="geometry" />
-        </mxCell>
-        <mxCell id="60" value="feed-service :8085&#xa;(消费 Feed 消息)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="2580" y="80" width="460" height="1450" as="geometry" />
-        </mxCell>
-
-        <!-- hmdp-service producers -->
-        <mxCell id="11" value="秒杀入口 Lua&#xa;LPUSH seckill:{seckill}:outbox payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="10">
+        <mxCell id="11" value="秒杀入口 Lua&#xa;LPUSH seckill:{seckill}:outbox payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" parent="10" vertex="1">
           <mxGeometry x="20" y="120" width="280" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="12" value="发布笔记&#xa;LPUSH feed:{feed}:outbox FeedPublishMessageJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="10">
+        <mxCell id="12" value="发布笔记&#xa;LPUSH feed:{feed}:outbox FeedPublishMessageJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;" parent="10" vertex="1">
           <mxGeometry x="20" y="220" width="280" height="70" as="geometry" />
         </mxCell>
-
-        <!-- Redis keys -->
-        <mxCell id="21" value="LIST&#xa;seckill:{seckill}:outbox&#xa;LPUSH payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="20">
+        <mxCell id="20" value="Redis Cluster&#xa;(Outbox/私有队列/缓存键)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="380" y="80" width="560" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="LIST&#xa;seckill:{seckill}:outbox&#xa;LPUSH payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" parent="20" vertex="1">
           <mxGeometry x="20" y="110" width="240" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="22" value="LIST&#xa;relay:queue:&lt;i&gt;&#xa;（Seckill 私有队列）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="20">
+        <mxCell id="22" value="LIST&#xa;relay:queue:&lt;i&gt;&#xa;（Seckill 私有队列）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" parent="20" vertex="1">
           <mxGeometry x="280" y="110" width="240" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="23" value="LIST&#xa;feed:{feed}:outbox&#xa;LPUSH payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="20">
+        <mxCell id="23" value="LIST&#xa;feed:{feed}:outbox&#xa;LPUSH payloadJson" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" parent="20" vertex="1">
           <mxGeometry x="20" y="220" width="240" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="24" value="LIST&#xa;relay:feed:queue:&lt;i&gt;&#xa;（Feed 私有队列）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="20">
+        <mxCell id="24" value="LIST&#xa;relay:feed:queue:&lt;i&gt;&#xa;（Feed 私有队列）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" parent="20" vertex="1">
           <mxGeometry x="280" y="220" width="240" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="25" value="String cache keys&#xa;cache:shop:&lt;id&gt;&#xa;cache:blog:&lt;id&gt;&#xa;（Canal 删除）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="20">
+        <mxCell id="25" value="String cache keys&#xa;cache:shop:&lt;id&gt;&#xa;cache:blog:&lt;id&gt;&#xa;（Canal 删除）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b85450;fontSize=10;align=left;" parent="20" vertex="1">
           <mxGeometry x="20" y="1030" width="500" height="90" as="geometry" />
         </mxCell>
-
-        <!-- relay-service workers -->
-        <mxCell id="31" value="SeckillRelayWorker.start()&#xa;线程池=6&#xa;每线程：requeueDangling(relay:queue:i) + pollAndForward(i)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;" vertex="1" parent="30">
+        <mxCell id="30" value="relay-service :8084&#xa;SeckillRelayWorker×6&#xa;FeedRelayWorker×4&#xa;CanalSubscriber×1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="960" y="80" width="620" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="SeckillRelayWorker.start()&#xa;线程池=6&#xa;每线程：requeueDangling(relay:queue:i) + pollAndForward(i)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="90" width="580" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="32" value="pollAndForward(i) 循环&#xa;RPOPLPUSH seckill:{seckill}:outbox → relay:queue:i (timeout=2s)&#xa;payload!=null → forward(relay:queue:i,payload)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="32" value="pollAndForward(i) 循环&#xa;RPOPLPUSH seckill:{seckill}:outbox → relay:queue:i (timeout=2s)&#xa;payload!=null → forward(relay:queue:i,payload)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="190" width="580" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="33" value="forward(queue,payload)&#xa;RabbitTemplate.convertAndSend(seckillExchange,seckill.message,payload,CorrelationData)&#xa;等待 Confirm(5s)&#xa;ACK → LREM queue 1 payload&#xa;NACK/异常 → payload 留在 queue 等重发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="33" value="forward(queue,payload)&#xa;RabbitTemplate.convertAndSend(seckillExchange,seckill.message,payload,CorrelationData)&#xa;等待 Confirm(5s)&#xa;ACK → LREM queue 1 payload&#xa;NACK/异常 → payload 留在 queue 等重发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="310" width="580" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="34" value="FeedRelayWorker.start()&#xa;线程池=4&#xa;RPOPLPUSH feed:{feed}:outbox → relay:feed:queue:i&#xa;publish 到 feedExchange / feed.publish" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="34" value="FeedRelayWorker.start()&#xa;线程池=4&#xa;RPOPLPUSH feed:{feed}:outbox → relay:feed:queue:i&#xa;publish 到 feedExchange / feed.publish" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="470" width="580" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="35" value="WHY：RPOPLPUSH + 私有队列&#xa;实现“崩溃可重试/防丢”&#xa;只有 Confirm ACK 才从私有队列删除" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#6c8ebf;fontSize=11;align=left;" vertex="1" parent="30">
+        <mxCell id="35" value="WHY：RPOPLPUSH + 私有队列&#xa;实现“崩溃可重试/防丢”&#xa;只有 Confirm ACK 才从私有队列删除" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#6c8ebf;fontSize=11;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="590" width="580" height="90" as="geometry" />
         </mxCell>
-
-        <!-- Canal subscriber -->
-        <mxCell id="36" value="CanalSubscriber.start()&#xa;单线程 Executor&#xa;consumeLoop：connect→subscribe→rollback→while(getWithoutAck)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="36" value="CanalSubscriber.start()&#xa;单线程 Executor&#xa;consumeLoop：connect→subscribe→rollback→while(getWithoutAck)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="860" width="580" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="37" value="processBatch(entries)&#xa;对每个 ROWDATA entry：handleEntryWithRetry(entry)&#xa;重试 MAX_RETRY=3（500ms间隔）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="37" value="processBatch(entries)&#xa;对每个 ROWDATA entry：handleEntryWithRetry(entry)&#xa;重试 MAX_RETRY=3（500ms间隔）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="960" width="580" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="38" value="parseAndInvalidateCache(entry)&#xa;解析 RowChange（INSERT/UPDATE/DELETE）&#xa;extractId(rowData) 取主键列&#xa;tb_shop → DEL cache:shop:&lt;id&gt;&#xa;tb_blog → DEL cache:blog:&lt;id&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="38" value="parseAndInvalidateCache(entry)&#xa;解析 RowChange（INSERT/UPDATE/DELETE）&#xa;extractId(rowData) 取主键列&#xa;tb_shop → DEL cache:shop:&lt;id&gt;&#xa;tb_blog → DEL cache:blog:&lt;id&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="1060" width="580" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="39" value="失败后 sendToErrorQueue(entry)&#xa;send errorMsg → seckillExchange routing=canal.error&#xa;（canal.error.queue durable）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="30">
+        <mxCell id="39" value="失败后 sendToErrorQueue(entry)&#xa;send errorMsg → seckillExchange routing=canal.error&#xa;（canal.error.queue durable）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#6c8ebf;fontSize=10;align=left;" parent="30" vertex="1">
           <mxGeometry x="20" y="1190" width="580" height="90" as="geometry" />
         </mxCell>
-
-        <!-- RabbitMQ -->
-        <mxCell id="41" value="Exchange&#xa;seckillExchange (durable)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="40">
+        <mxCell id="40" value="RabbitMQ 115.190.193.236&#xa;(durable + persistent + confirm=correlated)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="80" width="520" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="41" value="Exchange&#xa;seckillExchange (durable)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=12;" parent="40" vertex="1">
           <mxGeometry x="170" y="220" width="180" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="42" value="Queue&#xa;seckillQueue (durable)&#xa;bind: seckill.message / seckill.#" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="40">
+        <mxCell id="42" value="Queue&#xa;seckillQueue (durable)&#xa;bind: seckill.message / seckill.#" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" parent="40" vertex="1">
           <mxGeometry x="120" y="310" width="280" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="43" value="Queue&#xa;canal.error.queue (durable)&#xa;bind: canal.error" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="40">
+        <mxCell id="43" value="Queue&#xa;canal.error.queue (durable)&#xa;bind: canal.error" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#d79b00;fontSize=11;" parent="40" vertex="1">
           <mxGeometry x="120" y="410" width="280" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="44" value="Exchange&#xa;feedExchange (durable)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="40">
+        <mxCell id="44" value="Exchange&#xa;feedExchange (durable)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=12;" parent="40" vertex="1">
           <mxGeometry x="170" y="540" width="180" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="45" value="Queue&#xa;feed.publish.queue (durable)&#xa;bind: feed.publish" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="40">
+        <mxCell id="45" value="Queue&#xa;feed.publish.queue (durable)&#xa;bind: feed.publish" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" parent="40" vertex="1">
           <mxGeometry x="120" y="630" width="280" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="46" value="Queue&#xa;feed.batch.queue (durable)&#xa;bind: feed.batch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="40">
+        <mxCell id="46" value="Queue&#xa;feed.batch.queue (durable)&#xa;bind: feed.batch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" parent="40" vertex="1">
           <mxGeometry x="120" y="720" width="280" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="47" value="relay 配置（application.yaml）&#xa;publisher-confirm-type: correlated&#xa;template.delivery-mode: persistent&#xa;mandatory: true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d79b00;fontSize=10;align=left;" vertex="1" parent="40">
+        <mxCell id="47" value="relay 配置（application.yaml）&#xa;publisher-confirm-type: correlated&#xa;template.delivery-mode: persistent&#xa;mandatory: true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d79b00;fontSize=10;align=left;" parent="40" vertex="1">
           <mxGeometry x="80" y="820" width="360" height="90" as="geometry" />
         </mxCell>
-
-        <!-- Consumers -->
-        <mxCell id="51" value="OrderConsumer @RabbitListener(seckillQueue)&#xa;manualAck; exception→NACK(requeue=false)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="50">
+        <mxCell id="50" value="order-service :8083&#xa;(消费秒杀消息)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="2140" y="80" width="420" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="51" value="OrderConsumer @RabbitListener(seckillQueue)&#xa;manualAck; exception→NACK(requeue=false)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" parent="50" vertex="1">
           <mxGeometry x="20" y="320" width="380" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="61" value="FeedDispatcher @RabbitListener(feed.publish.queue)&#xa;manualAck; exception→NACK(requeue=false)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+        <mxCell id="60" value="feed-service :8085&#xa;(消费 Feed 消息)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="2580" y="80" width="460" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="61" value="FeedDispatcher @RabbitListener(feed.publish.queue)&#xa;manualAck; exception→NACK(requeue=false)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" parent="60" vertex="1">
           <mxGeometry x="20" y="630" width="420" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="62" value="FeedWorker @RabbitListener(feed.batch.queue)&#xa;消费批任务写 Redis 收件箱" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+        <mxCell id="62" value="FeedWorker @RabbitListener(feed.batch.queue)&#xa;消费批任务写 Redis 收件箱" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#9673a6;fontSize=10;align=left;" parent="60" vertex="1">
           <mxGeometry x="20" y="730" width="420" height="80" as="geometry" />
         </mxCell>
-
-        <!-- Edges: Outbox relay -->
-        <mxCell id="e1" value="LPUSH outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+        <mxCell id="e1" value="LPUSH outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="11" target="21" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e2" value="RPOPLPUSH → relay:queue:i" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="21" target="32">
+        <mxCell id="e2" value="RPOPLPUSH → relay:queue:i" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="21" target="32" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="290" />
+              <mxPoint x="810" y="290" />
+              <mxPoint x="810" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="payload 落私有队列" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="32" target="22" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="325" />
+              <mxPoint x="920" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="publish seckill.message" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="33" target="41" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e3" value="payload 落私有队列" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="32" target="22">
+        <mxCell id="e5" value="route → seckillQueue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="41" target="42" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e4" value="publish seckill.message" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="33" target="41">
+        <mxCell id="e6" value="consume" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="42" target="51" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e5" value="route → seckillQueue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="41" target="42">
+        <mxCell id="e7" value="LPUSH feed outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="12" target="23" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e6" value="consume" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="42" target="51">
+        <mxCell id="e8" value="RPOPLPUSH → relay:feed:queue:i" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="23" target="34" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="605" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="payload 落私有队列" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="34" target="24" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" value="LPUSH feed outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="23">
+        <mxCell id="e10" value="publish feed.publish" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="34" target="44" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e8" value="RPOPLPUSH → relay:feed:queue:i" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="23" target="34">
+        <mxCell id="e11" value="route → feed.publish.queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="44" target="45" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e9" value="payload 落私有队列" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="34" target="24">
+        <mxCell id="e12" value="consume" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="45" target="61" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e10" value="publish feed.publish" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="34" target="44">
+        <mxCell id="e13" value="DEL cache keys" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="38" target="25" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e11" value="route → feed.publish.queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="44" target="45">
+        <mxCell id="e14" value="DLQ publish canal.error" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" parent="1" source="39" target="41" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e12" value="consume" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="45" target="61">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Edges: Canal invalidate -->
-        <mxCell id="e13" value="DEL cache keys" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="38" target="25">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e14" value="DLQ publish canal.error" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="39" target="41">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e15" value="route → canal.error.queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="41" target="43">
+        <mxCell id="e15" value="route → canal.error.queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" parent="1" source="41" target="43" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
