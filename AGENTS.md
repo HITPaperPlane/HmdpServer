@@ -40,3 +40,15 @@
 - Redis cluster: nodes `123.56.100.212:6379`, `39.97.193.168:6379`, `115.190.193.236:6379`, password `123456`.
 - RabbitMQ: host `115.190.193.236`, port `5672`, vhost `/`, user `paperplane`, password `123456` (hmdp-service publisher, order-service consumer, relay publisher).
 - Canal for cache eviction (relay-service): host `123.56.100.212`, port `11111`, destination `example`, subscribes `hmdp.tb_shop` and `hmdp.tb_blog`.
+
+## 支付宝配置：
+- 商家信息
+  - 商户账号iwfpdc1019@sandbox.com
+  - 登录密码111111
+- 买家信息
+  - 买家账号fcnkds7206@sandbox.com
+  - 登录密码111111
+  - 支付密码111111
+- 应用公钥：MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAh+R74lb9OSEa2UtyXHMzcwLzpQfPECkbggQZ/o6MsowV7m8P+kYLVnv54VPFZ53CE4YX8Wuy3NiLGTBRf3Q5WAAsVWfqdWJEetm0Hr4iD6ZunrqhoapOnrUpLLkwrkiHLcBV2tWPYHCxQqUdNhd4b+0D+eiT7iLuJQX9zQMqWFVbFATP6j3pAxaVNt0DPngr/ONyeKuSCU8qj0F6Ut/Bcdald0EmYJDaK50SafgsYMtND6PSUQuhoBorgSyjP3o3aJEMt/+uc4sfB5kszJ9pu9X6WO/qWbqTlZ6KJFenBu3Gk0TIsjQQo9yBsMNu86Sn1IZ1r99uvjqNtkmaY9l+WwIDAQAB
+- 支付宝公钥：MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAisYgKJjkFOl4+PjCdJfKV1n0Ks9zEu8WueX/GkT72GYD3el7PtsxrKhNQWK/IcspZWKcdqtrRt4OBv0nu29Rg0CuHdS/ZWz/75RoC4+mQc6R/Lr7zQwXX1HaQckgTw1FjttjFrhwWB5v5jpQSn+nPRpd7wsMSQN7FRqxFjekoplxbYZooBFHsHlOE9kjjHZRgAPBwRfwblfcr6f7QOwcKWOIARc5JZsjGx9Uj8vvbmSCjvX+EXCS2lh5Lq2WyrRB6gHvZ2oxyy7AzbAUkmgrATmkxovGVMvzAOkzMjieECG8fVXvdInf5mmLFcgh6T7W9/YGhsOIXW0dLNdia1f9TQIDAQAB
+- APPID: 9021000143680387

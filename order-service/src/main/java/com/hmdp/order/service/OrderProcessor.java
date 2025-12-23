@@ -3,9 +3,13 @@ package com.hmdp.order.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.order.config.RabbitMQTopicConfig;
 import com.hmdp.order.dto.OrderMessage;
+import com.hmdp.order.dto.OrderTimeoutMessage;
+import com.hmdp.order.entity.MessageOutbox;
 import com.hmdp.order.entity.SeckillVoucher;
 import com.hmdp.order.entity.VoucherOrder;
+import com.hmdp.order.mapper.MessageOutboxMapper;
 import com.hmdp.order.mapper.UserQuotaMapper;
 import com.hmdp.order.mapper.VoucherOrderMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +32,13 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
 
     private final com.hmdp.order.mapper.SeckillVoucherMapper seckillVoucherMapper;
     private final UserQuotaMapper userQuotaMapper;
+    private final MessageOutboxMapper outboxMapper;
     private final StringRedisTemplate stringRedisTemplate;
 
     private static final long STATUS_TTL_MINUTES = 30;
     private static final String STATUS_KEY_PREFIX = "seckill:{seckill}:status:";
+    private static final String STOCK_KEY_PREFIX = "seckill:{seckill}:stock:";
+    private static final String OUTBOX_BIZ_TYPE_ORDER_CLOSE = "ORDER_CLOSE";
 
     @Transactional
     public void process(OrderMessage message) {
@@ -110,10 +117,73 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
             this.save(order);
         } catch (DuplicateKeyException e) {
             log.info("request {} duplicate, ignore", message.getOrderId());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             writeStatus(requestId, "SUCCESS", message.getOrderId(), message.getVoucherId(), message.getUserId(), null, buyCount);
             return;
         }
+        enqueueTimeoutClose(order.getId());
         writeStatus(requestId, "SUCCESS", order.getId(), order.getVoucherId(), order.getUserId(), null, buyCount);
+    }
+
+    @Transactional
+    public boolean paySuccess(Long orderId) {
+        LocalDateTime now = LocalDateTime.now();
+        int updated = this.getBaseMapper().update(null, new UpdateWrapper<VoucherOrder>()
+                .set("status", 2)
+                .set("pay_time", now)
+                .set("update_time", now)
+                .eq("id", orderId)
+                .eq("status", 1));
+        return updated > 0;
+    }
+
+    @Transactional
+    public boolean cancelOrder(Long orderId) {
+        VoucherOrder order = this.getById(orderId);
+        if (order == null) {
+            return false;
+        }
+        int count = order.getCount() == null || order.getCount() < 1 ? 1 : order.getCount();
+        LocalDateTime now = LocalDateTime.now();
+        int updated = this.getBaseMapper().update(null, new UpdateWrapper<VoucherOrder>()
+                .set("status", 4)
+                .set("update_time", now)
+                .eq("id", orderId)
+                .eq("status", 1));
+        if (updated <= 0) {
+            return false;
+        }
+
+        seckillVoucherMapper.update(null, new UpdateWrapper<SeckillVoucher>()
+                .setSql("stock = stock + " + count)
+                .eq("voucher_id", order.getVoucherId()));
+
+        try {
+            stringRedisTemplate.opsForValue().increment(STOCK_KEY_PREFIX + order.getVoucherId(), count);
+        } catch (Exception e) {
+            log.error("restore redis stock failed, voucherId={}, count={}", order.getVoucherId(), count, e);
+        }
+        return true;
+    }
+
+    private void enqueueTimeoutClose(Long orderId) {
+        OrderTimeoutMessage payload = new OrderTimeoutMessage();
+        payload.setOrderId(orderId);
+        payload.setTimestamp(System.currentTimeMillis());
+
+        MessageOutbox outbox = new MessageOutbox()
+                .setBizType(OUTBOX_BIZ_TYPE_ORDER_CLOSE)
+                .setBizId(String.valueOf(orderId))
+                .setExchangeName(RabbitMQTopicConfig.ORDER_DELAY_EXCHANGE)
+                .setRoutingKey(RabbitMQTopicConfig.ORDER_DELAY_ROUTING_KEY)
+                .setPayload(com.alibaba.fastjson.JSON.toJSONString(payload))
+                .setStatus(0)
+                .setRetryCount(0)
+                .setNextRetryTime(LocalDateTime.now());
+        try {
+            outboxMapper.insert(outbox);
+        } catch (DuplicateKeyException ignore) {
+        }
     }
 
     private void writeStatus(String requestId, String status, Long orderId, Long voucherId, Long userId, String reason, Integer count) {

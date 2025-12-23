@@ -1,0 +1,24 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: pay-service
+  redis:
+    cluster:
+      nodes:
+        - 123.56.100.212:6379
+        - 39.97.193.168:6379
+        - 115.190.193.236:6379
+    password: 123456
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 1
+pay:
+  mock:
+    enabled: false
+logging:
+  level:
+    root: info
+    com.hmdp.pay: debug

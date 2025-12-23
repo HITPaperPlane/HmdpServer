@@ -23,6 +23,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureIndex("tb_voucher_order", "uk_request", "ALTER TABLE tb_voucher_order ADD UNIQUE KEY uk_request (request_id)");
         ensureIndex("tb_voucher_order", "idx_user_voucher", "ALTER TABLE tb_voucher_order ADD INDEX idx_user_voucher (user_id, voucher_id)");
         ensureTable();
+        ensureOutboxTable();
     }
 
     private void ensureColumn(String table, String column, String sql) {
@@ -61,6 +62,31 @@ public class SchemaInitializer implements CommandLineRunner {
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         } catch (DataAccessException e) {
             log.warn("tb_user_quota init skipped: {}", e.getMessage());
+        }
+    }
+
+    private void ensureOutboxTable() {
+        try {
+            jdbcTemplate.execute(
+                    "CREATE TABLE IF NOT EXISTS message_outbox (" +
+                            "id BIGINT NOT NULL AUTO_INCREMENT," +
+                            "biz_type VARCHAR(64) NOT NULL," +
+                            "biz_id VARCHAR(128) NOT NULL," +
+                            "exchange_name VARCHAR(128) NOT NULL," +
+                            "routing_key VARCHAR(128) NOT NULL," +
+                            "payload TEXT NOT NULL," +
+                            "status TINYINT NOT NULL DEFAULT 0," +
+                            "retry_count INT NOT NULL DEFAULT 0," +
+                            "next_retry_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                            "create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                            "update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                            "PRIMARY KEY (id)," +
+                            "UNIQUE KEY uk_biz (biz_type, biz_id)," +
+                            "INDEX idx_status_retry (status, next_retry_time)" +
+                            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (DataAccessException e) {
+            log.warn("message_outbox init skipped: {}", e.getMessage());
         }
     }
 }

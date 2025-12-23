@@ -41,3 +41,8 @@ logging:
   level:
     root: info
     com.hmdp.order: debug
+hmdp:
+  order:
+    close-delay-ms: 1800000
+pay-service:
+  base-url: http://115.190.193.236:8090

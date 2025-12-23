@@ -3,6 +3,11 @@ server:
 spring:
   application:
     name: hmdp-relay
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC
+    username: root
+    password: '#gmrGMR110202'
   redis:
     cluster:
       nodes:
