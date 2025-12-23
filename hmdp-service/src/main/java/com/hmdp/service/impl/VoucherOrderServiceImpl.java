@@ -12,12 +12,14 @@ import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +47,15 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Value("${pay-service.base-url:http://115.190.193.236:8090}")
+    private String payServiceBaseUrl;
+
+    @Value("${pay.token.secret:hmdp-pay-secret}")
+    private String payTokenSecret;
+
+    @Value("${pay.token.ttl-seconds:300}")
+    private long payTokenTtlSeconds;
 
     //lua脚本
     private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
@@ -277,6 +288,51 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             rows = java.util.Collections.emptyList();
         }
         return Result.ok(rows);
+    }
+
+    @Override
+    public Result queryMyOrderDetail(Long orderId) {
+        if (orderId == null) {
+            return Result.fail("订单ID不能为空");
+        }
+        Long userId = UserHolder.getUser().getId();
+        com.hmdp.dto.VoucherOrderDetailDTO row = getBaseMapper().queryMyOrderDetail(userId, orderId);
+        if (row == null) {
+            return Result.fail("订单不存在");
+        }
+        return Result.ok(row);
+    }
+
+    @Override
+    public Result getPayUrl(Long orderId, String returnUrl) {
+        if (orderId == null) {
+            return Result.fail("订单ID不能为空");
+        }
+        Long userId = UserHolder.getUser().getId();
+        VoucherOrder order = getById(orderId);
+        if (order == null || order.getUserId() == null || !order.getUserId().equals(userId)) {
+            return Result.fail("订单不存在");
+        }
+        if (order.getStatus() == null || order.getStatus() != 1) {
+            return Result.fail("订单不可支付");
+        }
+
+        long expireAt = System.currentTimeMillis() + payTokenTtlSeconds * 1000L;
+        String raw = orderId + ":" + userId + ":" + expireAt;
+        String sign = DigestUtils.md5DigestAsHex((raw + ":" + payTokenSecret).getBytes(StandardCharsets.UTF_8));
+        String token = orderId + "." + userId + "." + expireAt + "." + sign;
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(payServiceBaseUrl)
+                .path("/pay/start")
+                .queryParam("token", token);
+        if (StringUtils.hasText(returnUrl)) {
+            builder.queryParam("returnUrl", returnUrl);
+        }
+        String payUrl = builder.build().encode().toUriString();
+        java.util.Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("payUrl", payUrl);
+        resp.put("expireAt", expireAt);
+        return Result.ok(resp);
     }
 
     private void writeImmediateStatus(String statusKey, String reqId, Long voucherId, Long userId, String reason, Long orderId, Integer count) {

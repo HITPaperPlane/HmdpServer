@@ -23,3 +23,7 @@ logs/
 /logs
 uploads/
 *.pid
+
+# Secrets (do not commit)
+docx/密钥*/
+pay-service/keys/

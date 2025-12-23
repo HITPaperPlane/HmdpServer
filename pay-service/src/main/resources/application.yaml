@@ -3,6 +3,17 @@ server:
 spring:
   application:
     name: pay-service
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://123.56.100.212:3306/hmdp?useSSL=false&serverTimezone=UTC
+    username: root
+    password: '#gmrGMR110202'
+  rabbitmq:
+    host: 115.190.193.236
+    username: paperplane
+    password: 123456
+    virtual-host: /
+    port: 5672
   redis:
     cluster:
       nodes:
@@ -18,6 +29,20 @@ spring:
 pay:
   mock:
     enabled: false
+  token:
+    secret: hmdp-pay-secret
+    ttl-seconds: 300
+  alipay:
+    app-id: 9021000143680387
+    gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+    sign-type: RSA2
+    charset: utf-8
+    notify-url: http://115.190.193.236:8090/alipay/notify
+    # 配置方式：建议用环境变量注入，避免把私钥写进仓库
+    app-private-key: ${ALIPAY_APP_PRIVATE_KEY:}
+    # 沙箱支付宝公钥（public）
+    alipay-public-key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAisYgKJjkFOl4+PjCdJfKV1n0Ks9zEu8WueX/GkT72GYD3el7PtsxrKhNQWK/IcspZWKcdqtrRt4OBv0nu29Rg0CuHdS/ZWz/75RoC4+mQc6R/Lr7zQwXX1HaQckgTw1FjttjFrhwWB5v5jpQSn+nPRpd7wsMSQN7FRqxFjekoplxbYZooBFHsHlOE9kjjHZRgAPBwRfwblfcr6f7QOwcKWOIARc5JZsjGx9Uj8vvbmSCjvX+EXCS2lh5Lq2WyrRB6gHvZ2oxyy7AzbAUkmgrATmkxovGVMvzAOkzMjieECG8fVXvdInf5mmLFcgh6T7W9/YGhsOIXW0dLNdia1f9TQIDAQAB'
+    return-url-default: http://127.0.0.1:5173/pay/result
 logging:
   level:
     root: info

@@ -42,6 +42,7 @@ public class MvcConfig implements WebMvcConfigurer {
                                     "/login",
                                     "/profile",
                                     "/orders",
+                                    "/pay/**",
                                     "/blogs/**",
                                     "/shops/**",
                                     "/merchant/dashboard",
@@ -59,14 +60,5 @@ public class MvcConfig implements WebMvcConfigurer {
         String absoluteDir = new File(SystemConstants.IMAGE_UPLOAD_DIR).getAbsolutePath();
         String location = "file:" + (absoluteDir.endsWith(File.separator) ? absoluteDir : absoluteDir + File.separator);
         registry.addResourceHandler("/imgs/**").addResourceLocations(location);
-
-        String frontendDir = System.getProperty(
-                "hmdp.frontend-dist-dir",
-                new File(System.getProperty("user.dir"), "../hmdp-frontend/dist").getPath()
-        );
-        String frontendAbs = new File(frontendDir).getAbsolutePath();
-        String frontendLocation =
-                "file:" + (frontendAbs.endsWith(File.separator) ? frontendAbs : frontendAbs + File.separator);
-        registry.addResourceHandler("/**").addResourceLocations(frontendLocation);
     }
 }

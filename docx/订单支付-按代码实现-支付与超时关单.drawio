@@ -1,0 +1,245 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Order_Pay_Timeout_Code" id="order-pay-timeout-code">
+    <mxGraphModel dx="4800" dy="2100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="订单支付 + 超时关单（按代码实现）：入口下单 → 支付 → 关单（严格对照当前代码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1f2937;strokeColor=#111827;fontColor=#ffffff;fontStyle=1;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="4400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="10" value="Client / Frontend :5173" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="260" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="hmdp-service :8088&#xa;(VoucherOrderController/VoucherOrderServiceImpl)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="600" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="Redis Cluster&#xa;(seckill/status/pay/close keys)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff0f5;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="940" y="80" width="460" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="relay-service :8084&#xa;(SeckillRelayWorker/DbRelayWorker)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="80" width="500" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="50" value="RabbitMQ 115.190.193.236:5672" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="80" width="520" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="60" value="order-service :8083&#xa;(OrderConsumer/OrderProcessor/OrderTimeoutListener/OrderPaidListener)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="2480" y="80" width="600" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="70" value="MySQL 123.56.100.212:3306/hmdp" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="3100" y="80" width="500" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="80" value="pay-service :8090 (public)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="3620" y="80" width="520" height="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="90" value="Alipay Sandbox" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff9e6;strokeColor=#d6b656;startSize=30;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="4160" y="80" width="420" height="1600" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="11" value="A1 秒杀下单&#xa;POST /voucher-order/seckill/{voucherId}?reqId=&lt;reqId&gt;&amp;count=&lt;n&gt;&#xa;前端：type3 先拿 reqId，type1 仅用于展示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="60" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="A2 轮询结果&#xa;GET /voucher-order/status?reqId=&lt;reqId&gt;&#xa;返回 {status:PENDING/SUCCESS/FAILED,...}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="200" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="B1 申请支付链接&#xa;GET /voucher-order/pay-url?orderId=&lt;orderId&gt;&amp;returnUrl=&lt;url&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="520" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="B2 打开支付页&#xa;window.open(payUrl)&#xa;GET /pay/start?token=..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="640" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="B3 支付回跳页&#xa;/pay/result?out_trade_no=&lt;orderId&gt;&#xa;前端轮询 /voucher-order/detail/{orderId}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11;align=left;" vertex="1" parent="10">
+          <mxGeometry x="20" y="820" width="220" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- hmdp-service -->
+        <mxCell id="21" value="VoucherOrderServiceImpl.seckillVoucher&#xa;1) 校验券/时间/预热/限购类型&#xa;2) 校验/生成 reqId&#xa;3) EVAL seckill.lua 原子扣库存+限购+写状态+入队&#xa;4) 返回 reqId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="60" width="560" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="VoucherOrderServiceImpl.queryStatus&#xa;unwrap reqId.sign → reqId&#xa;GET seckill:{seckill}:status:&lt;reqId&gt;&#xa;有值→JSON + status 大写；无值→NOT_FOUND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="220" width="560" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="VoucherOrderServiceImpl.getPayUrl&#xa;SELECT tb_voucher_order by id&#xa;校验 userId + status==1&#xa;token=orderId.userId.expireAt.sign&#xa;返回 payUrl + expireAt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="520" width="560" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="VoucherOrderServiceImpl.queryMyOrderDetail&#xa;JOIN tb_voucher + tb_shop&#xa;供 /pay/result 查询订单状态" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="20">
+          <mxGeometry x="20" y="820" width="560" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="31" value="seckill.lua 原子区&#xa;keys: stock/order/usercount/req/status/outbox&#xa;1) 校验库存/限购&#xa;2) 扣库存、记录限购&#xa;3) SET reqKey + statusKey(PENDING/FAILED)&#xa;4) LPUSH seckill:{seckill}:outbox payload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="70" width="420" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="statusKey&#xa;seckill:{seckill}:status:&lt;reqId&gt;&#xa;val=JSON {status,orderId,voucherId,userId,count,reason?,timestamp}&#xa;TTL=1800s" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="280" width="420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="pay trade cache&#xa;pay:{pay}:trade:&lt;orderId&gt;=PAID/CLOSED&#xa;TTL=7d（pay-service）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="720" width="420" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="order close 去重&#xa;order:{order}:close:processed:&lt;id&gt; TTL=1d&#xa;order:{order}:close:retry:&lt;id&gt; TTL=1d" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1060" width="420" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="35" value="库存回补&#xa;INCRBY seckill:{seckill}:stock:&lt;voucherId&gt; (cancelOrder)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="30">
+          <mxGeometry x="20" y="1280" width="420" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- relay-service -->
+        <mxCell id="41" value="SeckillRelayWorker&#xa;BRPOPLPUSH outbox → relay:queue:&lt;i&gt;&#xa;RabbitTemplate.convertAndSend(seckillExchange,seckill.#)&#xa;Confirm ACK → LREM relay queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="120" width="460" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="DbRelayWorker&#xa;SELECT message_outbox status=0 &amp; next_retry_time&lt;=now FOR UPDATE SKIP LOCKED&#xa;convertAndSend(exchange,routing,payload)&#xa;成功→status=1；失败→retry+backoff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="40">
+          <mxGeometry x="20" y="980" width="460" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- RabbitMQ -->
+        <mxCell id="51" value="seckillExchange / seckillQueue&#xa;routing: seckill.#" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="150" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="52" value="order.delay.exchange → order.delay.queue (TTL)&#xa;DLX: order.close.exchange → order.close.queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="1040" width="480" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="53" value="order.pay.exchange → order.pay.queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="50">
+          <mxGeometry x="20" y="820" width="480" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- order-service -->
+        <mxCell id="61" value="OrderConsumer.receive → OrderProcessor.process @Transactional&#xa;1) 幂等：SELECT tb_voucher_order WHERE request_id&#xa;2) 限购：type1 count/exists；type3 upsertQuota&#xa;3) 扣库存：tb_seckill_voucher stock CAS&#xa;4) INSERT tb_voucher_order (status=1,pay_type=2)&#xa;5) writeStatus(SUCCESS/FAILED)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="140" width="560" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="62" value="enqueueTimeoutClose(orderId)&#xa;INSERT message_outbox&#xa;biz_type=ORDER_CLOSE&#xa;exchange=order.delay.exchange&#xa;routing=order.delay&#xa;payload={orderId,timestamp}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="360" width="560" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="63" value="OrderTimeoutListener (order.close.queue)&#xa;1) processedKey 去重&#xa;2) SELECT order；status!=1 → mark processed&#xa;3) payClient.queryPayStatus(orderId)&#xa;4) 已支付 → paySuccess&#xa;5) 否则 payClient.closeTrade(orderId)&#xa;6) close ok → cancelOrder(status=4 + 回补库存)&#xa;7) trade success → paySuccess" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="1060" width="560" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="64" value="OrderPaidListener (order.pay.queue)&#xa;orderProcessor.paySuccess(orderId)&#xa;UPDATE tb_voucher_order status=2,pay_type=2,pay_time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="60">
+          <mxGeometry x="20" y="820" width="560" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL -->
+        <mxCell id="71" value="tb_voucher_order / tb_seckill_voucher / tb_user_quota&#xa;- request_id 幂等校验&#xa;- stock CAS 扣减/回补&#xa;- 订单 insert + status 更新" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="70">
+          <mxGeometry x="20" y="180" width="460" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="72" value="message_outbox&#xa;ORDER_CLOSE 延迟关单消息" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=10;align=left;" vertex="1" parent="70">
+          <mxGeometry x="20" y="360" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- pay-service -->
+        <mxCell id="81" value="PayController.start /pay/start&#xa;PayTokenService.verify(token)&#xa;AlipayPayGateway.createPayPage:&#xa;- PayOrderRepository SELECT order+voucher&#xa;- 校验 userId + status==1&#xa;- 生成 Alipay Page/WAP 请求 (timeout_express=30m)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=10;align=left;" vertex="1" parent="80">
+          <mxGeometry x="20" y="580" width="480" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="82" value="AlipayNotifyController /alipay/notify&#xa;验签 + app_id + trade_status&#xa;校验 total_amount&#xa;SET pay trade cache (PAID)&#xa;publish OrderPaidMessage → order.pay.exchange" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=10;align=left;" vertex="1" parent="80">
+          <mxGeometry x="20" y="820" width="480" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="83" value="/pay/query &amp; /pay/close&#xa;AlipayPayGateway.query/close:&#xa;- 先读 Redis trade cache&#xa;- 调 Alipay 查询/关闭&#xa;- 返回 PayStatusResult / PayCloseResult" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=10;align=left;" vertex="1" parent="80">
+          <mxGeometry x="20" y="1120" width="480" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- Alipay -->
+        <mxCell id="91" value="Alipay Sandbox 网关&#xa;pageExecute(form) → 用户支付" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="90">
+          <mxGeometry x="20" y="600" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="92" value="Alipay API&#xa;notify_url → /alipay/notify&#xa;query/close 被 pay-service 调用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="90">
+          <mxGeometry x="20" y="920" width="380" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="POST seckill" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="11" target="21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="EVAL seckill.lua" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="21" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="LPUSH outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="31" target="41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="publish seckill.#" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="41" target="51">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="consume seckillQueue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="51" target="61">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="DB:幂等/限购/扣库存/插单" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="61" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="write statusKey" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="61" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="INSERT message_outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="62" target="72">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="poll outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="72" target="42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="publish order.delay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="42" target="52">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="GET status" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="12" target="22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="GET statusKey" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="22" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="GET pay-url" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="13" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="open /pay/start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="14" target="81">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="SELECT order+voucher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="81" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="page/wap pay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="81" target="91">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="returnUrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="91" target="15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="GET detail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="15" target="24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" value="SELECT detail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="24" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" value="notify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="91" target="82">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="SET trade cache" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="82" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" value="publish order.pay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="82" target="53">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" value="consume order.pay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="53" target="64">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" value="UPDATE paid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="64" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" value="order.close.queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="52" target="63">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" value="processed/retry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="63" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" value="query/close" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="63" target="83">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" value="trade cache" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="83" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" value="Alipay query/close" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="83" target="92">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" value="UPDATE status" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="63" target="71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" value="restore stock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" edge="1" parent="1" source="63" target="35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

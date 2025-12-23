@@ -27,6 +27,7 @@ public interface VoucherOrderMapper extends BaseMapper<VoucherOrder> {
             "  o.pay_type AS payType, " +
             "  o.status AS status, " +
             "  o.create_time AS createTime, " +
+            "  o.pay_time AS payTime, " +
             "  v.title AS voucherTitle, " +
             "  v.type AS voucherType, " +
             "  v.shop_id AS shopId, " +
@@ -40,4 +41,27 @@ public interface VoucherOrderMapper extends BaseMapper<VoucherOrder> {
     List<VoucherOrderDetailDTO> queryMyOrderDetails(@Param("userId") Long userId,
                                                     @Param("offset") Integer offset,
                                                     @Param("size") Integer size);
+
+    @Select("SELECT " +
+            "  o.id AS id, " +
+            "  o.request_id AS requestId, " +
+            "  o.voucher_id AS voucherId, " +
+            "  o.count AS count, " +
+            "  o.limit_type AS limitType, " +
+            "  o.user_limit AS userLimit, " +
+            "  o.pay_type AS payType, " +
+            "  o.status AS status, " +
+            "  o.create_time AS createTime, " +
+            "  o.pay_time AS payTime, " +
+            "  v.title AS voucherTitle, " +
+            "  v.type AS voucherType, " +
+            "  v.shop_id AS shopId, " +
+            "  s.name AS shopName " +
+            "FROM tb_voucher_order o " +
+            "JOIN tb_voucher v ON o.voucher_id = v.id " +
+            "LEFT JOIN tb_shop s ON v.shop_id = s.id " +
+            "WHERE o.user_id = #{userId} AND o.id = #{orderId} " +
+            "LIMIT 1")
+    VoucherOrderDetailDTO queryMyOrderDetail(@Param("userId") Long userId,
+                                             @Param("orderId") Long orderId);
 }

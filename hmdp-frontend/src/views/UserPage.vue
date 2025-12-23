@@ -100,9 +100,13 @@ const followLoading = ref(false);
 
 const blogs = reactive({ list: [], page: 1, loading: false, finished: false, inFlight: false });
 
-const userId = computed(() => Number(route.params.id));
+const userId = computed(() => {
+  const raw = route.params.id;
+  const s = raw == null ? '' : String(raw).trim();
+  return /^\d+$/.test(s) ? s : null;
+});
 const avatarUrl = computed(() => resolveImg(user.icon) || defaultAvatar);
-const showFollow = computed(() => Boolean(session.token) && userId.value && session.profile.id !== userId.value);
+const showFollow = computed(() => Boolean(session.token) && userId.value && String(session.profile.id || '') !== String(userId.value));
 
 function roleLabel(role) {
   const r = (role || '').toUpperCase();
@@ -383,4 +387,3 @@ onMounted(async () => {
   overflow: hidden;
 }
 </style>
-

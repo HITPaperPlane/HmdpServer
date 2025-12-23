@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
 import Orders from '../views/Orders.vue';
+import PayResult from '../views/PayResult.vue';
 import Blogs from '../views/Blogs.vue';
 import BlogDetail from '../views/BlogDetail.vue';
 import Profile from '../views/Profile.vue';
@@ -22,6 +23,7 @@ const routes = [
   { path: '/', name: 'home', component: Home },
   { path: '/login', name: 'login', component: Login },
   { path: '/orders', name: 'orders', component: Orders },
+  { path: '/pay/result', name: 'pay-result', component: PayResult },
   { path: '/blogs', name: 'blogs', component: Blogs },
   { path: '/blogs/:id', name: 'blog-detail', component: BlogDetail },
   { path: '/shops/:id', name: 'shop-detail', component: ShopDetail },
@@ -51,6 +53,7 @@ router.beforeEach((to) => {
   const needsAuth =
       path === '/profile' ||
       path === '/orders' ||
+      path.startsWith('/pay') ||
       path === '/follows' ||
       path.startsWith('/merchant') ||
       path.startsWith('/admin');

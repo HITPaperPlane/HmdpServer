@@ -49,4 +49,15 @@ public class VoucherOrderController {
     public Result queryStatus(@RequestParam("reqId") String requestId) {
         return voucherOrderService.queryStatus(requestId);
     }
+
+    @GetMapping("/detail/{orderId}")
+    public Result myOrderDetail(@PathVariable("orderId") Long orderId) {
+        return voucherOrderService.queryMyOrderDetail(orderId);
+    }
+
+    @GetMapping("/pay-url")
+    public Result payUrl(@RequestParam("orderId") Long orderId,
+                         @RequestParam(value = "returnUrl", required = false) String returnUrl) {
+        return voucherOrderService.getPayUrl(orderId, returnUrl);
+    }
 }

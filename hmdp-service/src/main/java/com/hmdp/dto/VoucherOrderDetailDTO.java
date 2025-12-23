@@ -19,5 +19,5 @@ public class VoucherOrderDetailDTO {
     private Integer payType;
     private Integer status;
     private LocalDateTime createTime;
+    private LocalDateTime payTime;
 }
-

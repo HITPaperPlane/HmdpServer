@@ -110,7 +110,7 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
                 .setCount(buyCount)
                 .setLimitType(limitType)
                 .setUserLimit(message.getUserLimit())
-                .setPayType(1)
+                .setPayType(2)
                 .setStatus(1)
                 .setCreateTime(LocalDateTime.now());
         try {
@@ -130,6 +130,7 @@ public class OrderProcessor extends ServiceImpl<VoucherOrderMapper, VoucherOrder
         LocalDateTime now = LocalDateTime.now();
         int updated = this.getBaseMapper().update(null, new UpdateWrapper<VoucherOrder>()
                 .set("status", 2)
+                .set("pay_type", 2)
                 .set("pay_time", now)
                 .set("update_time", now)
                 .eq("id", orderId)

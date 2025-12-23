@@ -191,6 +191,7 @@ import { resolveImg, splitImages } from '../utils/media';
 import { sanitizeHtml } from '../utils/sanitize';
 import { useSessionStore } from '../stores/session';
 import defaultAvatar from '../assets/default-avatar.svg';
+import { showConfirmDialog, showToast } from 'vant';
 
 const route = useRoute();
 const router = useRouter();
@@ -418,6 +419,36 @@ function nextReqId(voucherId) {
   return `REQ_${voucherId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
+async function startPay(orderId) {
+  if (!session.token || !orderId) return;
+  try {
+    const returnUrl = `${window.location.origin}/pay/result`;
+    const resp = await request(`/voucher-order/pay-url?orderId=${orderId}&returnUrl=${encodeURIComponent(returnUrl)}`, { token: session.token });
+    const payUrl = resp?.payUrl || resp;
+    if (!payUrl) throw new Error('支付链接为空');
+    const win = window.open(payUrl, '_blank');
+    if (!win) window.location.href = payUrl;
+    showToast('已打开支付页面');
+  } catch (e) {
+    showToast(e?.message || '获取支付链接失败');
+  }
+}
+
+async function promptPay(orderId) {
+  if (!orderId) return;
+  try {
+    await showConfirmDialog({
+      title: '抢购成功',
+      message: `订单号 ${orderId}，是否立即支付？`,
+      confirmButtonText: '去支付',
+      cancelButtonText: '稍后'
+    });
+    await startPay(orderId);
+  } catch {
+    // cancelled
+  }
+}
+
 async function seckill(voucherId) {
   if (!session.token) {
     log.value = '请先登录再秒杀';
@@ -489,8 +520,10 @@ async function pollStatus(voucherId) {
     const status = (resp?.status || '').toUpperCase();
     if (status === 'SUCCESS') {
       state.status = 'SUCCESS';
-      log.value = '抢购成功';
+      const orderId = resp?.orderId;
+      log.value = orderId ? `抢购成功，订单号 ${orderId}` : '抢购成功';
       if (limitType !== 1) clearStoredReq(voucherId);
+      if (orderId) promptPay(orderId);
       state.timer = setTimeout(() => resetSeckillState(state), 1500);
       return;
     }

@@ -16,7 +16,7 @@
 - `relay-service/`：Redis Outbox → RabbitMQ 搬运，以及后续 Canal 订阅缓存同步，端口 8084。
 - `hmdp-frontend/`：单站点 Web 前端（同一套页面覆盖用户/商家/管理员）。
 - `nginx/`：Nginx 反代/静态托管示例配置。
-- `pay-service/`：支付服务（当前为 stub，提供 `/pay/query`、`/pay/close`），端口 8090（必须部署在 `115.190.193.236`）。
+- `pay-service/`：支付服务（支持支付宝沙箱 + mock，提供 `/pay/start`、`/alipay/notify`、`/pay/query`、`/pay/close`），端口 8090（必须部署在 `115.190.193.236`）。
 
 ## 在 115.190.193.236 部署 pay-service（只部署 pay-service）
 > 说明：本机无公网 IP 的情况下，只有 pay-service 需要在公网服务器上运行；其余服务都按本文档在本地启动即可。
@@ -156,7 +156,7 @@ tail -f ../logs/feed-service.log
 kill $(lsof -ti:8085)
 ```
 
-### 5) pay-service（115.190.193.236:8090，支付 stub）
+### 5) pay-service（115.190.193.236:8090，支付宝沙箱 / Mock）
 构建：
 ```bash
 cd pay-service
@@ -164,7 +164,12 @@ mvn clean package -DskipTests
 ```
 启动：
 ```bash
-nohup java -jar target/pay-service-0.0.1-SNAPSHOT.jar --server.port=8090 > ../logs/pay-service.log 2>&1 & echo $!
+# 真实支付宝沙箱：需要注入应用私钥（不要写进仓库）
+export ALIPAY_APP_PRIVATE_KEY="$(cat pay-service/keys/alipay_app_private_key.txt)"
+nohup java -jar target/pay-service-0.0.1-SNAPSHOT.jar --server.port=8090 --pay.mock.enabled=false > ../logs/pay-service.log 2>&1 & echo $!
+
+# 仅联调链路（不走支付宝）：Mock 支付页 + 手动标记已支付
+# nohup java -jar target/pay-service-0.0.1-SNAPSHOT.jar --server.port=8090 --pay.mock.enabled=true > ../logs/pay-service.log 2>&1 & echo $!
 ```
 查看日志：
 ```bash
@@ -189,25 +194,11 @@ npm --prefix hmdp-frontend install
 npm --prefix hmdp-frontend run build
 ```
 
-#### 4.0) 推荐：由 `hmdp-service:8088` 直接托管前端（无需占用 5173）
-> 适用：服务器不方便再开一个前端端口，或 `vite/nginx` 监听端口受限时。
+访问：
+- 前端：`http://127.0.0.1:5173/`
+- 后端 API：`http://127.0.0.1:8088/`（前端通过 `/api/**` 代理调用）
 
-1) 构建前端：
-```bash
-npm --prefix hmdp-frontend install
-npm --prefix hmdp-frontend run build
-```
-
-2) 启动 `hmdp-service`（默认会从 `../hmdp-frontend/dist` 提供静态资源；可用 JVM 参数覆盖）：
-```bash
-nohup java -Dhmdp.frontend-dist-dir="$(pwd)/hmdp-frontend/dist" -jar hmdp-service/target/hm-dianping-0.0.1-SNAPSHOT.jar --server.port=8088 > logs/hmdp-service.log 2>&1 & echo $!
-```
-
-3) 访问：
-- 前端：`http://127.0.0.1:8088/`
-- API：前端统一走 `/api/**`（后端已做前缀转发到原有 controller 路径）
-
-#### 4.1) 前端无法用 Node 监听端口时（推荐）：用 Nginx 在 5173 提供静态站点 + /api 反代
+#### 6.1) 前端无法用 Node 监听端口时（推荐）：用 Nginx 在 5173 提供静态站点 + /api 反代
 > 场景：某些机器上 `node/vite` 可能出现 `listen EPERM` 无法绑定端口。此时用仓库内 Nginx 配置即可跑通前端联调。
 
 准备（先构建一次前端）：
@@ -283,6 +274,7 @@ sudo nginx -s reload
   - 监听 `feed.publish.queue` 进行大 V 批量扇出拆分，`feed.batch.queue` 批量写粉丝收件箱，Redis 集群与其他服务一致。
 - `pay-service/src/main/resources/application.yaml`
   - 端口默认 8090；Redis 同集群；`pay.mock.enabled=false`（需要测试时可临时用启动参数打开）。
+  - 支付宝私钥建议通过环境变量注入：`ALIPAY_APP_PRIVATE_KEY`（对应 `pay.alipay.app-private-key`）。
 
 ## 运行时流程（秒杀）
 1) 管理员/商家预热：`VoucherService.addSeckillVoucher` 将库存、限购策略写入 DB 与 Redis。
@@ -336,7 +328,7 @@ tail -n 50 logs/hmdp-service.log
 curl -s -X POST "http://115.190.193.236:8090/pay/query?orderId=1"
 
 # 本地 hmdp-service
-curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8088/"
+curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8088/shop-type/list"
 ```
 
 ## 测试清单（订单支付 + 超时关单）

@@ -23,4 +23,8 @@ public interface IVoucherOrderService extends IService<VoucherOrder> {
     Result queryStatus(String requestId);
 
     Result generateRequestId(Long voucherId, Integer count);
+
+    Result getPayUrl(Long orderId, String returnUrl);
+
+    Result queryMyOrderDetail(Long orderId);
 }

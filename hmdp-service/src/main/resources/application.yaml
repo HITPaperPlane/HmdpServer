@@ -56,3 +56,9 @@ mybatis-plus:
 logging:
   level:
     com.hmdp: debug
+pay:
+  token:
+    secret: hmdp-pay-secret
+    ttl-seconds: 300
+pay-service:
+  base-url: http://115.190.193.236:8090

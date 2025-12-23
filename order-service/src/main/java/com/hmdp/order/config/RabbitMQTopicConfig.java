@@ -16,6 +16,10 @@ public class RabbitMQTopicConfig {
     public static final String EXCHANGE = "seckillExchange";
     public static final String ROUTINGKEY = "seckill.#";
 
+    public static final String ORDER_PAY_QUEUE = "order.pay.queue";
+    public static final String ORDER_PAY_EXCHANGE = "order.pay.exchange";
+    public static final String ORDER_PAY_ROUTING_KEY = "order.pay";
+
     public static final String ORDER_DELAY_QUEUE = "order.delay.queue";
     public static final String ORDER_DELAY_EXCHANGE = "order.delay.exchange";
     public static final String ORDER_DELAY_ROUTING_KEY = "order.delay";
@@ -53,6 +57,11 @@ public class RabbitMQTopicConfig {
     }
 
     @Bean
+    public DirectExchange orderPayExchange() {
+        return new DirectExchange(ORDER_PAY_EXCHANGE, true, false);
+    }
+
+    @Bean
     public Queue orderDelayQueue() {
         return QueueBuilder.durable(ORDER_DELAY_QUEUE)
                 .withArgument("x-message-ttl", closeDelayMs)
@@ -67,6 +76,11 @@ public class RabbitMQTopicConfig {
     }
 
     @Bean
+    public Queue orderPayQueue() {
+        return new Queue(ORDER_PAY_QUEUE, true);
+    }
+
+    @Bean
     public Binding orderDelayBinding() {
         return BindingBuilder.bind(orderDelayQueue()).to(orderDelayExchange()).with(ORDER_DELAY_ROUTING_KEY);
     }
@@ -74,5 +88,10 @@ public class RabbitMQTopicConfig {
     @Bean
     public Binding orderCloseBinding() {
         return BindingBuilder.bind(orderCloseQueue()).to(orderCloseExchange()).with(ORDER_CLOSE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderPayBinding() {
+        return BindingBuilder.bind(orderPayQueue()).to(orderPayExchange()).with(ORDER_PAY_ROUTING_KEY);
     }
 }

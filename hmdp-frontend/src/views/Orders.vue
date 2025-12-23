@@ -36,6 +36,13 @@
             </div>
 
             <div class="order-actions">
+              <van-button
+                  v-if="Number(o.status) === 1"
+                  size="small"
+                  type="danger"
+                  :disabled="!o.id"
+                  @click="startPay(o.id)"
+              >去支付</van-button>
               <van-button size="small" plain type="primary" :disabled="!o.shopId" @click="openShop(o.shopId)">去店铺</van-button>
               <van-button size="small" plain type="default" :disabled="!o.requestId" @click="copyReq(o.requestId)">复制 ReqId</van-button>
             </div>
@@ -53,6 +60,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { request } from '../api/http';
 import { useSessionStore } from '../stores/session';
+import { showToast } from 'vant';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -101,6 +109,21 @@ function payLabel(payType) {
 function openShop(shopId) {
   if (!shopId) return;
   router.push(`/shops/${shopId}`);
+}
+
+async function startPay(orderId) {
+  if (!session.token || !orderId) return;
+  try {
+    const returnUrl = `${window.location.origin}/pay/result`;
+    const resp = await request(`/voucher-order/pay-url?orderId=${orderId}&returnUrl=${encodeURIComponent(returnUrl)}`, { token: session.token });
+    const payUrl = resp?.payUrl || resp;
+    if (!payUrl) throw new Error('支付链接为空');
+    const win = window.open(payUrl, '_blank');
+    if (!win) window.location.href = payUrl;
+    showToast('已打开支付页面');
+  } catch (e) {
+    showToast(e?.message || '获取支付链接失败');
+  }
 }
 
 async function copyReq(reqId) {
@@ -267,4 +290,3 @@ onMounted(refresh);
   font-size: 12px;
 }
 </style>
-
